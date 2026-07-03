@@ -2,22 +2,21 @@
   "name": "customer-radar",
   "version": "1.0.0",
   "description": "客户雷达 — AI-Friendly 招投标数据平台",
-  "main": "index.js",
+  "main": "src/server/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node src/server/index.js",
+    "dev": "node --watch src/server/index.js",
+    "fetch": "node src/server/jobs/fetch-notices.js",
+    "test": "node src/server/test-api.js"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/rogercwchenhk/spot.git"
-  },
-  "keywords": [],
+  "keywords": ["bidding", "radar", "ai"],
   "author": "",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/rogercwchenhk/spot/issues"
-  },
-  "homepage": "https://github.com/rogercwchenhk/spot#readme",
   "dependencies": {
-    "pg": "^8.22.0"
-  }
+    "@supabase/supabase-js": "^2.50.0",
+    "express": "^4.21.0",
+    "node-cron": "^3.0.3",
+    "dotenv": "^16.5.0"
+  },
+  "devDependencies": {}
 }

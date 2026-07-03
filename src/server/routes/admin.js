@@ -1,0 +1,280 @@
+/**
+ * 管理员 API
+ * 标讯处理、匹配计算、推送管理、用户管理
+ */
+const express = require('express');
+const router = express.Router();
+const { supabaseAdmin } = require('../db');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { processNotice, processPendingNotices } = require('../services/ai-pipeline');
+const { calculateMatch, calculatePendingMatches } = require('../services/match-engine');
+const { pushNoticeNotification, pushNewMatches, testPush } = require('../services/wecom-notify');
+const { fetchAndStore } = require('../services/ingestion');
+
+// 所有管理接口都需要 admin 权限
+router.use(requireAuth, requireAdmin);
+
+// POST /api/admin/notices/fetch - 手动触发标讯采集
+router.post('/notices/fetch', async (req, res) => {
+  try {
+    const { keywords, province } = req.body;
+    const searchKeywords = keywords || ['运维', '小型机'];
+    const targetProvince = province || '广东';
+
+    const result = await fetchAndStore(searchKeywords, {
+      province: targetProvince,
+      pageSize: 20,
+      maxPages: 3,
+    });
+
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/admin/notices/:id/process - 触发单条标讯 AI 处理
+router.post('/notices/:id/process', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await processNotice(Number(id));
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/admin/notices/process-batch - 批量 AI 处理
+router.post('/notices/process-batch', async (req, res) => {
+  try {
+    const { limit = 20 } = req.body;
+    const result = await processPendingNotices(limit);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/admin/match/:noticeId - 计算单条匹配
+router.post('/match/:noticeId', async (req, res) => {
+  try {
+    const { noticeId } = req.params;
+    const result = await calculateMatch(Number(noticeId));
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/admin/match/batch - 批量匹配计算
+router.post('/match/batch', async (req, res) => {
+  try {
+    const { limit = 50 } = req.body;
+    const result = await calculatePendingMatches(limit);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/admin/push/test - 测试企微推送
+router.post('/push/test', async (req, res) => {
+  try {
+    const result = await testPush();
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/admin/push/:noticeId - 手动推送标讯
+router.post('/push/:noticeId', async (req, res) => {
+  try {
+    const { noticeId } = req.params;
+
+    // 获取标讯和匹配结果
+    const { data: notice, error: noticeError } = await supabaseAdmin
+      .from('bidding_notice')
+      .select('*')
+      .eq('id', noticeId)
+      .single();
+
+    if (noticeError || !notice) {
+      return res.status(404).json({ success: false, error: 'Notice not found' });
+    }
+
+    const { data: match, error: matchError } = await supabaseAdmin
+      .from('match_result')
+      .select('*')
+      .eq('notice_id', noticeId)
+      .single();
+
+    if (matchError || !match) {
+      return res.status(400).json({ success: false, error: 'Match result not found. Run matching first.' });
+    }
+
+    const result = await pushNoticeNotification(notice, match);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/admin/push/batch - 批量推送新匹配
+router.post('/push/batch', async (req, res) => {
+  try {
+    const { limit = 20 } = req.body;
+    const result = await pushNewMatches(limit);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/admin/pipeline - 运行完整流程
+router.post('/pipeline', async (req, res) => {
+  try {
+    const { runFullPipeline } = require('../services/scheduler');
+    const result = await runFullPipeline();
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/admin/stats - 系统统计
+router.get('/stats', async (req, res) => {
+  try {
+    const [notices, companyQuals, personnelQuals, contracts, matches] = await Promise.all([
+      supabaseAdmin.from('bidding_notice').select('id', { count: 'exact', head: true }),
+      supabaseAdmin.from('company_qualification').select('id', { count: 'exact', head: true }),
+      supabaseAdmin.from('personnel_qualification').select('id', { count: 'exact', head: true }),
+      supabaseAdmin.from('company_contract').select('id', { count: 'exact', head: true }),
+      supabaseAdmin.from('match_result').select('id', { count: 'exact', head: true }),
+    ]);
+
+    // AI 处理状态统计
+    const { data: aiStatusStats } = await supabaseAdmin
+      .from('bidding_notice')
+      .select('ai_status')
+      .then(({ data }) => {
+        const stats = {};
+        (data || []).forEach(n => {
+          stats[n.ai_status] = (stats[n.ai_status] || 0) + 1;
+        });
+        return { data: stats };
+      });
+
+    // 匹配等级统计
+    const { data: matchLevelStats } = await supabaseAdmin
+      .from('match_result')
+      .select('recommend_level')
+      .then(({ data }) => {
+        const stats = {};
+        (data || []).forEach(m => {
+          stats[m.recommend_level] = (stats[m.recommend_level] || 0) + 1;
+        });
+        return { data: stats };
+      });
+
+    res.json({
+      success: true,
+      data: {
+        counts: {
+          notices: notices.count || 0,
+          company_qualifications: companyQuals.count || 0,
+          personnel_qualifications: personnelQuals.count || 0,
+          contracts: contracts.count || 0,
+          matches: matches.count || 0,
+        },
+        ai_status: aiStatusStats || {},
+        match_levels: matchLevelStats || {},
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/admin/users - 列出用户（简化版）
+router.get('/users', async (req, res) => {
+  try {
+    const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers();
+
+    if (error) throw error;
+
+    const userList = (users || []).map(u => ({
+      id: u.id,
+      email: u.email,
+      role: u.user_metadata?.role || u.app_metadata?.role || 'viewer',
+      created_at: u.created_at,
+      last_sign_in_at: u.last_sign_in_at,
+    }));
+
+    res.json({ success: true, data: userList });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/admin/users - 新增用户
+router.post('/users', async (req, res) => {
+  try {
+    const { email, password, role = 'viewer' } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: 'Email and password are required' });
+    }
+
+    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      user_metadata: { role },
+      email_confirm: true,
+    });
+
+    if (error) throw error;
+
+    res.status(201).json({
+      success: true,
+      data: {
+        id: data.user.id,
+        email: data.user.email,
+        role: role,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// PUT /api/admin/users/:id/role - 修改用户角色
+router.put('/users/:id/role', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    if (!['admin', 'viewer'].includes(role)) {
+      return res.status(400).json({ success: false, error: 'Role must be admin or viewer' });
+    }
+
+    const { data, error } = await supabaseAdmin.auth.admin.updateUserById(id, {
+      user_metadata: { role },
+    });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: {
+        id: data.user.id,
+        email: data.user.email,
+        role: role,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+module.exports = router;

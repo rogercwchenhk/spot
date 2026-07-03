@@ -1,0 +1,17 @@
+{
+  "name": "customer-radar-cli",
+  "version": "1.0.0",
+  "description": "客户雷达 CLI 工具",
+  "bin": {
+    "cr": "./bin/cr.js"
+  },
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "cli-table3": "^0.6.3",
+    "commander": "^11.0.0",
+    "conf": "^10.2.0",
+    "inquirer": "^8.2.7",
+    "node-fetch": "^2.6.7",
+    "ora": "^5.4.1"
+  }
+}
