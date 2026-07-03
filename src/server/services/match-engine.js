@@ -1,6 +1,8 @@
 /**
- * 匹配引擎服务
- * 规则引擎：资格比对 + 扣分计算 + 推荐等级
+ * 匹配引擎服务 (v2)
+ * 启发式匹配：基于公司能力 vs 标讯需求的契合度
+ * 注意：标讯不含招标文件正文，无法获取资质要求和评分标准
+ * 匹配基于：技术关键词、行业经验、项目类型、地区、合同业绩
  */
 const { supabaseAdmin } = require('../db');
 
@@ -10,158 +12,223 @@ const { supabaseAdmin } = require('../db');
 async function calculateMatch(noticeId) {
   console.log(`[match-engine] Calculating match for notice ${noticeId}`);
 
-  // 1. 读取标讯的 AI 提取结果
   const { data: notice, error: noticeError } = await supabaseAdmin
     .from('bidding_notice')
-    .select('id, ai_extracted_fields')
+    .select('*')
     .eq('id', noticeId)
     .single();
 
-  if (noticeError || !notice || !notice.ai_extracted_fields) {
-    throw new Error(`Notice ${noticeId} has no AI extracted fields`);
+  if (noticeError || !notice) {
+    throw new Error(`Notice not found: ${noticeId}`);
+  }
+
+  if (!notice.ai_extracted_fields) {
+    throw new Error(`Notice ${noticeId} has no AI extracted fields (run ai-pipeline first)`);
   }
 
   const extracted = notice.ai_extracted_fields;
-  const qualificationRequirements = extracted.qualification_requirements || [];
-  const commercialRules = extracted.commercial_scoring_rules || [];
 
-  // 2. 加载公司资质
+  // 加载公司能力数据
   const { data: companyQuals } = await supabaseAdmin
     .from('company_qualification')
-    .select('*, qualification_ref_id, match_keywords')
+    .select('*')
     .eq('is_active', true);
 
-  // 3. 加载人员资质
   const { data: personnelQuals } = await supabaseAdmin
     .from('personnel_qualification')
-    .select('*, qualification_ref_id, match_keywords')
+    .select('*')
     .eq('is_active', true);
 
-  // 4. 加载合同（同类业绩）
   const { data: contracts } = await supabaseAdmin
     .from('company_contract')
     .select('*')
     .eq('is_active', true);
 
-  // 5. 匹配计算
   const matchDetails = [];
-  const unmatchedItems = [];
   const riskNotes = [];
-  let totalDeduction = 0;
+  let totalScore = 0; // 满分 100
 
-  // 5.1 资质匹配
-  for (const req of qualificationRequirements) {
-    const reqText = req.item.toLowerCase();
-    const isMandatory = req.mandatory !== false;
+  // ─────────────────────────────────────────────
+  // 1. 技术关键词匹配 (最高 30 分)
+  // ─────────────────────────────────────────────
+  const noticeTechKw = (extracted.tech_keywords || []).map(k => k.toLowerCase());
+  const matchedTechKw = [];
+  const unmatchedTechKw = [];
 
-    // 在公司资质中查找匹配
-    const companyMatch = findQualificationMatch(reqText, companyQuals, 'company');
-    
-    // 在人员资质中查找匹配
-    const personnelMatch = findQualificationMatch(reqText, personnelQuals, 'personnel');
+  if (noticeTechKw.length > 0) {
+    // 合并所有公司资质关键词
+    const companyKw = [
+      ...(companyQuals || []).map(q => q.qual_name?.toLowerCase() || ''),
+      ...(companyQuals || []).map(q => q.scope?.toLowerCase() || ''),
+      ...(personnelQuals || []).map(q => q.qual_name?.toLowerCase() || ''),
+    ].join(' ');
 
-    if (companyMatch || personnelMatch) {
-      matchDetails.push({
-        requirement: req.item,
-        matched: true,
-        deduction: 0,
-        source: companyMatch ? 'company' : 'personnel',
-        matched_item: companyMatch?.qual_name || personnelMatch?.qual_name,
-      });
-    } else {
-      const deduction = isMandatory ? 3 : 1;
-      totalDeduction += deduction;
-      
-      matchDetails.push({
-        requirement: req.item,
-        matched: false,
-        deduction: deduction,
-        source: null,
-        matched_item: null,
-      });
+    // 合并合同关键词
+    const contractKw = (contracts || []).flatMap(c => (c.tech_keywords || []).map(k => k.toLowerCase()));
+    const allCompanyKw = companyKw + ' ' + contractKw.join(' ');
 
-      unmatchedItems.push({
-        requirement: req.item,
-        mandatory: isMandatory,
-        deduction: deduction,
-      });
+    for (const kw of noticeTechKw) {
+      if (allCompanyKw.includes(kw)) {
+        matchedTechKw.push(kw);
+      } else {
+        unmatchedTechKw.push(kw);
+      }
     }
-  }
 
-  // 5.2 商务评分规则匹配
-  for (const rule of commercialRules) {
-    const ruleText = rule.item.toLowerCase();
-    const maxScore = rule.max_score || 0;
-    const deductionIfMissing = rule.deduction_if_missing || maxScore;
+    const techScore = Math.round((matchedTechKw.length / noticeTechKw.length) * 30);
+    totalScore += techScore;
 
-    // 检查是否有对应的资质或能力
-    const hasCapability = checkCapability(ruleText, companyQuals, personnelQuals, contracts);
-
-    if (hasCapability) {
-      matchDetails.push({
-        requirement: rule.item,
-        matched: true,
-        deduction: 0,
-        max_score: maxScore,
-        source: 'capability',
-      });
-    } else {
-      totalDeduction += deductionIfMissing;
-      
-      matchDetails.push({
-        requirement: rule.item,
-        matched: false,
-        deduction: deductionIfMissing,
-        max_score: maxScore,
-        source: null,
-      });
-
-      unmatchedItems.push({
-        requirement: rule.item,
-        deduction: deductionIfMissing,
-      });
-    }
-  }
-
-  // 5.3 同类业绩匹配（加分项）
-  const similarContracts = findSimilarContracts(extracted, contracts);
-  if (similarContracts.length > 0) {
     matchDetails.push({
-      requirement: '同类项目经验',
-      matched: true,
-      deduction: 0,
-      source: 'contract',
-      matched_items: similarContracts.map(c => c.project_name),
+      dimension: '技术关键词',
+      score: techScore,
+      max_score: 30,
+      matched: matchedTechKw,
+      unmatched: unmatchedTechKw,
+    });
+
+    if (unmatchedTechKw.length > 0) {
+      riskNotes.push(`技术缺口: ${unmatchedTechKw.join('、')}`);
+    }
+  } else {
+    // 没有技术关键词，给中间分
+    totalScore += 15;
+    matchDetails.push({ dimension: '技术关键词', score: 15, max_score: 30, note: '标讯未提取到技术关键词' });
+  }
+
+  // ─────────────────────────────────────────────
+  // 2. 行业经验匹配 (最高 25 分)
+  // ─────────────────────────────────────────────
+  const noticeIndustry = (extracted.industry_type || '').toLowerCase();
+  let industryMatched = false;
+
+  if (noticeIndustry && noticeIndustry !== 'other') {
+    const contractIndustries = (contracts || []).map(c => (c.industry || '').toLowerCase());
+    industryMatched = contractIndustries.some(ci => ci.includes(noticeIndustry) || noticeIndustry.includes(ci));
+
+    const industryScore = industryMatched ? 25 : 5;
+    totalScore += industryScore;
+
+    matchDetails.push({
+      dimension: '行业经验',
+      score: industryScore,
+      max_score: 25,
+      notice_industry: noticeIndustry,
+      matched: industryMatched,
+      company_industries: [...new Set(contractIndustries.filter(Boolean))],
+    });
+
+    if (!industryMatched) {
+      riskNotes.push(`无${noticeIndustry}行业经验`);
+    }
+  } else {
+    totalScore += 12;
+    matchDetails.push({ dimension: '行业经验', score: 12, max_score: 25, note: '行业类型不明确' });
+  }
+
+  // ─────────────────────────────────────────────
+  // 3. 项目类型匹配 (最高 20 分)
+  // ─────────────────────────────────────────────
+  const noticeProjectType = (extracted.project_type || '').toLowerCase();
+  let projectTypeMatched = false;
+
+  if (noticeProjectType && noticeProjectType !== 'other') {
+    const contractTypes = (contracts || []).map(c => (c.service_type || '').toLowerCase());
+    projectTypeMatched = contractTypes.some(ct => ct.includes(noticeProjectType) || noticeProjectType.includes(ct));
+
+    const typeScore = projectTypeMatched ? 20 : 5;
+    totalScore += typeScore;
+
+    matchDetails.push({
+      dimension: '项目类型',
+      score: typeScore,
+      max_score: 20,
+      notice_type: noticeProjectType,
+      matched: projectTypeMatched,
+      company_types: [...new Set(contractTypes.filter(Boolean))],
+    });
+
+    if (!projectTypeMatched) {
+      riskNotes.push(`无${noticeProjectType}类型经验`);
+    }
+  } else {
+    totalScore += 10;
+    matchDetails.push({ dimension: '项目类型', score: 10, max_score: 20, note: '项目类型不明确' });
+  }
+
+  // ─────────────────────────────────────────────
+  // 4. 地区匹配 (最高 15 分)
+  // ─────────────────────────────────────────────
+  const noticeRegion = (extracted.region || notice.region_scope || notice.city || '').toLowerCase();
+  let regionMatched = false;
+
+  if (noticeRegion) {
+    const contractRegions = (contracts || []).map(c => (c.region || '').toLowerCase());
+    // 广东省内各市视为匹配
+    const guangdongCities = ['广州', '深圳', '佛山', '东莞', '珠海', '中山', '惠州', '江门', '肇庆', '汕头', '韶关', '湛江', '茂名', '梅州', '汕尾', '河源', '阳江', '清远', '潮州', '揭阳', '云浮'];
+    const isGuangdong = (r) => r.includes('广东') || guangdongCities.some(c => r.includes(c.toLowerCase()));
+
+    regionMatched = contractRegions.some(cr =>
+      cr.includes(noticeRegion) || noticeRegion.includes(cr) ||
+      (isGuangdong(cr) && isGuangdong(noticeRegion))
+    );
+
+    const regionScore = regionMatched ? 15 : 8;
+    totalScore += regionScore;
+
+    matchDetails.push({
+      dimension: '地区匹配',
+      score: regionScore,
+      max_score: 15,
+      notice_region: noticeRegion,
+      matched: regionMatched,
     });
   } else {
-    // 同类业绩缺失通常扣2分
-    totalDeduction += 2;
-    unmatchedItems.push({
-      requirement: '同类项目经验',
-      deduction: 2,
-    });
-    riskNotes.push('缺少同类项目经验');
+    totalScore += 8;
+    matchDetails.push({ dimension: '地区匹配', score: 8, max_score: 15, note: '地区不明确' });
   }
 
-  // 6. 计算推荐等级
+  // ─────────────────────────────────────────────
+  // 5. 同类业绩匹配 (最高 10 分)
+  // ─────────────────────────────────────────────
+  const similarContracts = findSimilarContracts(extracted, contracts || []);
+  if (similarContracts.length > 0) {
+    totalScore += 10;
+    matchDetails.push({
+      dimension: '同类业绩',
+      score: 10,
+      max_score: 10,
+      matched: true,
+      contracts: similarContracts.map(c => c.project_name),
+    });
+  } else {
+    totalScore += 0;
+    matchDetails.push({ dimension: '同类业绩', score: 0, max_score: 10, matched: false });
+    riskNotes.push('缺少同类项目业绩');
+  }
+
+  // ─────────────────────────────────────────────
+  // 计算推荐等级
+  // ─────────────────────────────────────────────
   let recommendLevel;
-  if (totalDeduction <= 0) {
+  if (totalScore >= 80) {
     recommendLevel = 'strong';
-  } else if (totalDeduction <= 2) {
+  } else if (totalScore >= 60) {
     recommendLevel = 'yes';
-  } else if (totalDeduction <= 5) {
+  } else if (totalScore >= 40) {
     recommendLevel = 'risky';
   } else {
     recommendLevel = 'no';
   }
 
-  // 7. 写入 match_result
+  // total_deduction 字段保留用于兼容，表示"距离满分差多少分"
+  const totalDeduction = 100 - totalScore;
+
   const matchResult = {
     notice_id: noticeId,
     total_deduction: totalDeduction,
     recommend_level: recommendLevel,
     match_details: matchDetails,
-    unmatched_items: unmatchedItems.length > 0 ? unmatchedItems : null,
+    unmatched_items: null,
     risk_notes: riskNotes.length > 0 ? riskNotes : null,
   };
 
@@ -176,61 +243,8 @@ async function calculateMatch(noticeId) {
     throw saveError;
   }
 
-  console.log(`[match-engine] Notice ${noticeId}: ${recommendLevel} (deduction: ${totalDeduction})`);
+  console.log(`[match-engine] Notice ${noticeId}: ${recommendLevel} (score: ${totalScore}/100)`);
   return saved;
-}
-
-/**
- * 查找资质匹配
- */
-function findQualificationMatch(requirement, qualifications, type) {
-  if (!qualifications || qualifications.length === 0) return null;
-
-  const reqLower = requirement.toLowerCase();
-
-  for (const qual of qualifications) {
-    // 1. 直接名称匹配
-    if (qual.qual_name.toLowerCase().includes(reqLower) || reqLower.includes(qual.qual_name.toLowerCase())) {
-      return qual;
-    }
-
-    // 2. match_keywords 匹配
-    if (qual.match_keywords && qual.match_keywords.length > 0) {
-      for (const keyword of qual.match_keywords) {
-        if (reqLower.includes(keyword.toLowerCase()) || keyword.toLowerCase().includes(reqLower)) {
-          return qual;
-        }
-      }
-    }
-
-    // 3. qual_type 匹配
-    if (qual.qual_type && reqLower.includes(qual.qual_type.toLowerCase())) {
-      return qual;
-    }
-  }
-
-  return null;
-}
-
-/**
- * 检查能力（资质 + 合同）
- */
-function checkCapability(ruleText, companyQuals, personnelQuals, contracts) {
-  // 检查公司资质
-  if (findQualificationMatch(ruleText, companyQuals, 'company')) return true;
-  
-  // 检查人员资质
-  if (findQualificationMatch(ruleText, personnelQuals, 'personnel')) return true;
-  
-  // 检查合同经验
-  if (contracts && contracts.length > 0) {
-    for (const contract of contracts) {
-      if (contract.project_name && contract.project_name.toLowerCase().includes(ruleText)) return true;
-      if (contract.tech_keywords && contract.tech_keywords.some(kw => ruleText.includes(kw.toLowerCase()))) return true;
-    }
-  }
-
-  return false;
 }
 
 /**
@@ -243,12 +257,10 @@ function findSimilarContracts(extracted, contracts) {
   const industry = (extracted.industry_type || '').toLowerCase();
   const techKeywords = (extracted.tech_keywords || []).map(kw => kw.toLowerCase());
 
-  // 近3年日期
   const threeYearsAgo = new Date();
   threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
 
   return contracts.filter(contract => {
-    // 检查时间窗口
     if (contract.end_date) {
       const endDate = new Date(contract.end_date);
       if (endDate < threeYearsAgo) return false;
@@ -256,45 +268,50 @@ function findSimilarContracts(extracted, contracts) {
 
     let score = 0;
 
-    // 服务类型匹配
-    if (projectType && contract.service_type && 
+    if (projectType && projectType !== 'other' && contract.service_type &&
         contract.service_type.toLowerCase().includes(projectType)) {
       score += 3;
     }
 
-    // 行业匹配
-    if (industry && contract.industry && 
+    if (industry && industry !== 'other' && contract.industry &&
         contract.industry.toLowerCase().includes(industry)) {
       score += 2;
     }
 
-    // 技术关键词匹配
     if (techKeywords.length > 0 && contract.tech_keywords) {
       const contractKws = contract.tech_keywords.map(kw => kw.toLowerCase());
       const matchCount = techKeywords.filter(kw => contractKws.some(ckw => ckw.includes(kw) || kw.includes(ckw))).length;
       score += matchCount;
     }
 
-    return score >= 2; // 至少匹配2分才算同类
+    return score >= 2;
   });
 }
 
 /**
  * 批量计算匹配结果
  */
-async function calculatePendingMatches(limit = 50) {
-  // 找出 AI 处理完成但没有匹配结果的标讯
+async function calculatePendingMatches(limit = 250) {
+  // 获取已有匹配结果的 notice_id
+  const { data: existingMatches } = await supabaseAdmin
+    .from('match_result')
+    .select('notice_id');
+
+  const existingIds = new Set((existingMatches || []).map(m => m.notice_id));
+
+  // 获取 AI 处理完成的标讯
   const { data: notices, error } = await supabaseAdmin
     .from('bidding_notice')
     .select('id')
     .eq('ai_status', 4)
-    .not('id', 'in', 
-      supabaseAdmin.from('match_result').select('notice_id')
-    )
+    .order('publish_date', { ascending: false })
     .limit(limit);
 
   if (error) throw error;
-  if (!notices || notices.length === 0) {
+
+  const pending = (notices || []).filter(n => !existingIds.has(n.id));
+
+  if (pending.length === 0) {
     console.log('[match-engine] No pending matches');
     return { calculated: 0, failed: 0 };
   }
@@ -302,7 +319,7 @@ async function calculatePendingMatches(limit = 50) {
   let calculated = 0;
   let failed = 0;
 
-  for (const notice of notices) {
+  for (const notice of pending) {
     try {
       await calculateMatch(notice.id);
       calculated++;

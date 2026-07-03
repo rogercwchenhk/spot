@@ -4,6 +4,11 @@
 const { apiRequest } = require('../lib/auth');
 const { output, colorizeLevel, error } = require('../lib/output');
 
+function getMatchLevel(mr) {
+  const m = Array.isArray(mr) ? mr[0] : mr;
+  return m ? colorizeLevel(m.recommend_level) : '-';
+}
+
 async function execute(options = {}) {
   try {
     const params = new URLSearchParams();
@@ -37,7 +42,7 @@ async function execute(options = {}) {
       预算: n.budget_amount ? `¥${(n.budget_amount / 10000).toFixed(0)}万` : '-',
       城市: n.city || '-',
       截止: n.end_date ? new Date(n.end_date).toLocaleDateString('zh-CN') : '-',
-      等级: n.match_result?.[0] ? colorizeLevel(n.match_result[0].recommend_level) : '-',
+      等级: getMatchLevel(n.match_result),
     }));
 
     output(notices, { total: result.total });

@@ -6,7 +6,7 @@ const express = require('express');
 const router = express.Router();
 const { supabaseAdmin, supabaseAdmin: supabaseWrite } = require('../db');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
-const { processNotice, processPendingNotices } = require('../services/ai-pipeline');
+const { processNotice, processPendingNotices, resetAllAiStatus } = require('../services/ai-pipeline');
 const { calculateMatch, calculatePendingMatches } = require('../services/match-engine');
 const { pushNoticeNotification, pushNewMatches, testPush } = require('../services/wecom-notify');
 const { fetchAndStore } = require('../services/ingestion');
@@ -137,6 +137,18 @@ router.post('/pipeline', async (req, res) => {
     const { runFullPipeline } = require('../services/scheduler');
     const result = await runFullPipeline();
     res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/admin/ai/reset - 重置所有 AI 状态并重新处理
+router.post('/ai/reset', async (req, res) => {
+  try {
+    const resetResult = await resetAllAiStatus();
+    const processResult = await processPendingNotices(500);
+    const matchResult = await calculatePendingMatches(500);
+    res.json({ success: true, data: { reset: resetResult, processed: processResult, matches: matchResult } });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

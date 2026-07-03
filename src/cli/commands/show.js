@@ -19,7 +19,7 @@ async function execute(id, options = {}) {
     }
 
     const n = result.data;
-    const match = n.match_result?.[0];
+    const match = Array.isArray(n.match_result) ? n.match_result[0] : n.match_result;
     
     console.log('\n' + '='.repeat(60));
     console.log(`📋 标讯详情 #${n.id}`);
@@ -40,8 +40,14 @@ async function execute(id, options = {}) {
       if (match.match_details) {
         console.log('\n逐项匹配:');
         match.match_details.forEach(d => {
-          const icon = d.matched ? '✅' : '❌';
-          console.log(`  ${icon} ${d.requirement} ${d.deduction > 0 ? '(扣' + d.deduction + '分)' : ''}`);
+          if (d.dimension) {
+            const pct = d.max_score ? Math.round(d.score / d.max_score * 100) : 0;
+            const icon = pct >= 80 ? '✅' : pct >= 50 ? '🟡' : '❌';
+            console.log(`  ${icon} ${d.dimension}: ${d.score}/${d.max_score}`);
+          } else if (d.requirement) {
+            const icon = d.matched ? '✅' : '❌';
+            console.log(`  ${icon} ${d.requirement} ${d.deduction > 0 ? '(扣' + d.deduction + '分)' : ''}`);
+          }
         });
       }
     }
