@@ -1,0 +1,21 @@
+# 依赖
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+
+# 环境变量（敏感凭据）
+.env
+.env.local
+.env.*.local
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# 日志
+*.log
