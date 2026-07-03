@@ -1,0 +1,23 @@
+{
+  "name": "customer-radar",
+  "version": "1.0.0",
+  "description": "客户雷达 — AI-Friendly 招投标数据平台",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rogercwchenhk/spot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/rogercwchenhk/spot/issues"
+  },
+  "homepage": "https://github.com/rogercwchenhk/spot#readme",
+  "dependencies": {
+    "pg": "^8.22.0"
+  }
+}
