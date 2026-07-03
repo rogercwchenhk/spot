@@ -4,7 +4,7 @@
  */
 const express = require('express');
 const router = express.Router();
-const { supabaseAdmin } = require('../db');
+const { supabaseAdmin, supabaseAdmin: supabaseWrite } = require('../db');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 
 // GET /api/contracts - 合同列表（公开）

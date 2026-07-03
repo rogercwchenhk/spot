@@ -13,7 +13,7 @@ const config = {
   mimo: {
     apiKey: process.env.MIMO_API_KEY,
     model: process.env.MIMO_MODEL || 'mimo-v2.5-pro',
-    baseUrl: process.env.MIMO_BASE_URL || 'https://api.mimo.ai/v1',
+    baseUrl: process.env.MIMO_BASE_URL || 'https://token-plan-cn.xiaomimimo.com/v1',
   },
   wecom: {
     webhookUrl: process.env.WECOM_WEBHOOK_URL,

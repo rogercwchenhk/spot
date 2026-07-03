@@ -12,7 +12,23 @@ router.get('/', async (req, res) => {
       region_scope,
       notice_type,
       keyword,
+      start_date,
     } = req.query;
+
+    // 如果按推荐等级筛选，先从 match_result 表查出符合条件的 notice_id
+    let noticeIds = null;
+    if (recommend_level) {
+      const { data: matches, error: matchErr } = await supabaseAdmin
+        .from('match_result')
+        .select('notice_id')
+        .eq('recommend_level', recommend_level);
+      if (matchErr) throw matchErr;
+      noticeIds = (matches || []).map(m => m.notice_id);
+      // 没有任何匹配结果，直接返回空
+      if (noticeIds.length === 0) {
+        return res.json({ success: true, data: [], total: 0, page: Number(page), pageSize: Number(pageSize) });
+      }
+    }
 
     let query = supabaseAdmin
       .from('bidding_notice')
@@ -20,9 +36,11 @@ router.get('/', async (req, res) => {
       .order('publish_date', { ascending: false })
       .range((page - 1) * pageSize, page * pageSize - 1);
 
+    if (noticeIds) query = query.in('id', noticeIds);
     if (region_scope) query = query.eq('region_scope', region_scope);
     if (notice_type) query = query.eq('notice_type', notice_type);
     if (keyword) query = query.or(`title.ilike.%${keyword}%,notice_summary.ilike.%${keyword}%`);
+    if (start_date) query = query.gte('publish_date', start_date);
 
     const { data, error, count } = await query;
     if (error) throw error;
