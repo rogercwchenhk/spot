@@ -58,7 +58,7 @@ async function pushNoticeNotification(notice, matchResult) {
     return { success: false, reason: 'level_not_qualified' };
   }
 
-  const isDuplicate = await checkDuplicate(notice.tenderee, notice.id);
+  const isDuplicate = await checkDuplicate(notice.tenderee);
   if (isDuplicate) {
     console.log(`[wecom] Skip notice ${notice.id}: duplicate tenderee ${notice.tenderee}`);
     return { success: false, reason: 'duplicate_tenderee' };
@@ -91,21 +91,21 @@ async function pushNoticeNotification(notice, matchResult) {
 /**
  * 检查是否重复推送（24小时内同一采购单位）
  */
-async function checkDuplicate(tenderee, currentNoticeId) {
+async function checkDuplicate(tenderee) {
   if (!tenderee) return false;
 
   const oneDayAgo = new Date();
   oneDayAgo.setHours(oneDayAgo.getHours() - 24);
 
   const { data, error } = await supabaseAdmin
-    .from('bidding_notice')
+    .from('push_history')
     .select('id')
     .eq('tenderee', tenderee)
-    .lt('created_at', oneDayAgo.toISOString())
-    .neq('id', currentNoticeId)
+    .gte('pushed_at', oneDayAgo.toISOString())
     .limit(1);
 
   if (error) {
+    // push_history 表可能还未创建，降级为不检查
     console.warn('[wecom] Duplicate check error:', error.message);
     return false;
   }
@@ -119,13 +119,8 @@ async function checkDuplicate(tenderee, currentNoticeId) {
 async function recordPushHistory(noticeId, tenderee) {
   try {
     await supabaseAdmin
-      .from('notice_tag')
-      .insert({
-        notice_id: noticeId,
-        tag_type: 'push_status',
-        tag_value: 'pushed',
-        confidence: 1.0,
-      });
+      .from('push_history')
+      .insert({ notice_id: noticeId, tenderee, channel: 'wecom' });
   } catch (err) {
     console.warn('[wecom] Record push history failed:', err.message);
   }
@@ -155,15 +150,14 @@ async function pushNewMatches(limit = 20) {
     const notice = match.bidding_notice;
     if (!notice) continue;
 
-    const { data: pushTag } = await supabaseAdmin
-      .from('notice_tag')
+    // 检查是否已推送（通过 push_history 表）
+    const { data: alreadyPushed } = await supabaseAdmin
+      .from('push_history')
       .select('id')
       .eq('notice_id', notice.id)
-      .eq('tag_type', 'push_status')
-      .eq('tag_value', 'pushed')
       .limit(1);
 
-    if (pushTag && pushTag.length > 0) {
+    if (alreadyPushed && alreadyPushed.length > 0) {
       skipped++;
       continue;
     }

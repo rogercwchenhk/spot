@@ -9,14 +9,18 @@
     "fetch": "node src/server/jobs/fetch-notices.js",
     "test": "node src/server/test-api.js"
   },
-  "keywords": ["bidding", "radar", "ai"],
+  "keywords": [
+    "bidding",
+    "radar",
+    "ai"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@supabase/supabase-js": "^2.50.0",
+    "cors": "^2.8.6",
+    "dotenv": "^16.5.0",
     "express": "^4.21.0",
-    "node-cron": "^3.0.3",
-    "dotenv": "^16.5.0"
-  },
-  "devDependencies": {}
+    "node-cron": "^3.0.3"
+  }
 }

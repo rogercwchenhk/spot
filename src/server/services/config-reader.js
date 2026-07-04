@@ -2,7 +2,7 @@
  * 系统配置读取器
  * 优先从数据库读取，回退到 .env 默认值
  */
-const { supabaseAdmin } = require('./db');
+const { supabaseAdmin } = require('../db');
 
 // 内存缓存，避免每次请求都查库
 let cache = {};
