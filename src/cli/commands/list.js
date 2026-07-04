@@ -14,6 +14,7 @@ async function execute(options = {}) {
     const params = new URLSearchParams();
     if (options.level) params.set('recommend_level', options.level);
     if (options.city) params.set('region_scope', options.city);
+    if (options.access) params.set('doc_access_type', options.access);
     if (options.page) params.set('page', options.page);
     
     // 日期筛选

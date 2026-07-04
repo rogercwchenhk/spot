@@ -107,6 +107,7 @@ erDiagram
 | `ai_status` | 处理状态 | AI Pipeline 写入 |
 | `industry_type` | 行业分类 | AI Pipeline 写入 |
 | `data_source` | 数据来源（`zhiliao_api`） | 入库时写入 |
+| `doc_access_type` | 招标文件获取方式 (unknown/free/paid/registration_required) | 默认 unknown，后续标记 |
 
 **关键约束**：因为 `notice_content` 始终为空，AI Pipeline 不能做内容级提取（如摘要、资质要求、评分规则）。
 

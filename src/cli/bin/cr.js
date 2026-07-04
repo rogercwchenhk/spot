@@ -86,6 +86,7 @@ program
   .option('-l, --level <level>', '推荐等级 (strong/yes/risky/no)')
   .option('-c, --city <city>', '城市')
   .option('-d, --days <days>', '最近N天', '7')
+  .option('-a, --access <type>', '招标文件获取方式 (unknown/free/paid/registration_required)')
   .option('-p, --page <page>', '页码', '1')
   .option('--json', 'JSON 格式输出')
   .action(async (options) => {

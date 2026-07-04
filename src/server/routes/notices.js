@@ -13,6 +13,7 @@ router.get('/', async (req, res) => {
       notice_type,
       keyword,
       start_date,
+      doc_access_type,
     } = req.query;
 
     // 如果按推荐等级筛选，先从 match_result 表查出符合条件的 notice_id
@@ -41,6 +42,7 @@ router.get('/', async (req, res) => {
     if (notice_type) query = query.eq('notice_type', notice_type);
     if (keyword) query = query.or(`title.ilike.%${keyword}%,notice_summary.ilike.%${keyword}%`);
     if (start_date) query = query.gte('publish_date', start_date);
+    if (doc_access_type) query = query.eq('doc_access_type', doc_access_type);
 
     const { data, error, count } = await query;
     if (error) throw error;

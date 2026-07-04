@@ -31,6 +31,8 @@ async function execute(id, options = {}) {
     console.log(`截止: ${n.end_date || '-'}`);
     console.log(`采购单位: ${n.tenderee || '-'}`);
     console.log(`代理机构: ${n.tender_agent || '-'}`);
+    const accessLabels = { unknown: '未检查', free: '免费下载', paid: '收费', registration_required: '需报名' };
+    console.log(`招标文件: ${accessLabels[n.doc_access_type] || '未检查'}`);
     
     if (match) {
       console.log('\n--- 匹配结果 ---');
