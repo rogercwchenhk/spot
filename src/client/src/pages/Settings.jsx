@@ -244,21 +244,24 @@ export default function Settings() {
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
         <div className="flex gap-2">
-          {!editing && (
-            <button onClick={() => setEditing(true)}
-              className="inline-flex items-center gap-1 text-xs border border-gray-200 text-gray-600 px-2 py-1 rounded hover:bg-gray-100">
-              <Pencil size={12} /> 编辑
-            </button>
-          )}
+          <button onClick={() => { if (!editing) setEditing(true); }}
+            disabled={editing}
+            className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded ${
+              editing ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'border border-gray-200 text-gray-600 hover:bg-gray-100'
+            }`}>
+            <Pencil size={12} /> 编辑
+          </button>
           <button onClick={onSave} disabled={saving || !editing}
-            className={`inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg ${
+            className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded ${
               editing ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
             }`}>
             <Save size={12} /> 保存
           </button>
           {editing && (
             <button onClick={() => { setEditing(false); fetchConfig(); }}
-              className="text-xs text-gray-500 hover:text-gray-700">取消</button>
+              className="inline-flex items-center text-xs text-gray-500 hover:text-gray-700 px-2 py-1">
+              <X size={14} /> 取消
+            </button>
           )}
         </div>
       </div>
