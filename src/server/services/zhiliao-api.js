@@ -52,7 +52,7 @@ async function rateLimitedFetch(endpoint, body) {
 }
 
 /**
- * 搜索招中标
+ * 搜索招中标（基础接口，1积分/次）
  */
 async function searchBids(keywords, opts = {}) {
   const body = {
@@ -61,10 +61,58 @@ async function searchBids(keywords, opts = {}) {
     page_size: opts.pageSize || 20,
   };
 
+  if (opts.matchModes) body.match_modes = opts.matchModes;
   if (opts.provinces) body.provinces = Array.isArray(opts.provinces) ? opts.provinces : [opts.provinces];
+  if (opts.cities) body.cities = Array.isArray(opts.cities) ? opts.cities : [opts.cities];
   if (opts.bidType) body.bid_type = opts.bidType;
+  if (opts.bidProcess) body.bid_process = opts.bidProcess;
+  if (opts.beginDate) body.begin_date = opts.beginDate;
+  if (opts.endDate) body.end_date = opts.endDate;
+  if (opts.minAmount) body.min_amount = opts.minAmount;
+  if (opts.maxAmount) body.max_amount = opts.maxAmount;
 
   const result = await rateLimitedFetch('search_bids', body);
+  return {
+    total: result.data?.total || 0,
+    items: result.data?.items || [],
+    costUnits: result.meta?.cost_units || 0,
+  };
+}
+
+/**
+ * 标讯高级查询（2积分/次）
+ * 支持 keyword_groups（组内AND/组间OR）、exclude_keywords、match_modes 等高级功能
+ */
+async function queryBidsAdvanced(opts = {}) {
+  const body = {
+    page: opts.page || 1,
+    page_size: opts.pageSize || 20,
+  };
+
+  // keyword_groups: [{keywords: ['运维','小型机'], match_modes: ['sm','title']}, ...]
+  if (opts.keywordGroups) body.keyword_groups = opts.keywordGroups;
+  // 简单关键词 + 匹配模式
+  if (opts.keywords) body.keywords = opts.keywords;
+  if (opts.matchModes) body.match_modes = opts.matchModes;
+  // 排除关键词
+  if (opts.excludeKeywords) body.exclude_keywords = opts.excludeKeywords;
+  // 地区筛选
+  if (opts.provinces) body.provinces = Array.isArray(opts.provinces) ? opts.provinces : [opts.provinces];
+  if (opts.cities) body.cities = Array.isArray(opts.cities) ? opts.cities : [opts.cities];
+  // 公告类型筛选
+  if (opts.bidType) body.bid_type = opts.bidType;
+  if (opts.bidProcess) body.bid_process = opts.bidProcess;
+  // 时间范围
+  if (opts.beginDate) body.begin_date = opts.beginDate;
+  if (opts.endDate) body.end_date = opts.endDate;
+  // 金额范围（单位：元）
+  if (opts.minMoney) body.min_money = opts.minMoney;
+  if (opts.maxMoney) body.max_money = opts.maxMoney;
+  // 排序
+  if (opts.sortField) body.sort_field = opts.sortField;
+  if (opts.sortOrder) body.sort_order = opts.sortOrder;
+
+  const result = await rateLimitedFetch('query_bids_advanced', body);
   return {
     total: result.data?.total || 0,
     items: result.data?.items || [],
@@ -85,4 +133,4 @@ async function getBidDetail(bidId, opts = {}) {
   return result.data;
 }
 
-module.exports = { searchBids, getBidDetail };
+module.exports = { searchBids, queryBidsAdvanced, getBidDetail };

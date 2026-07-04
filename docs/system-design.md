@@ -1,6 +1,7 @@
 # 客户雷达 — 技术设计文档
 
 > 版本: v2.0 | 日期: 2026-07-03 | 基于 PRD v2.0 修正
+> 版本: v5.0 | 日期: 2026-07-04 | 新增关键词策略 v2（高级查询+分组+排除词）
 > 版本: v3.0 | 日期: 2026-07-04 | 基于 Phase B 实际验证修正
 > 版本: v4.0 | 日期: 2026-07-04 | 新增招标文件自动下载与存储设计
 ---
@@ -35,6 +36,41 @@
 
 ---
 
+
+### 1.1 搜索关键词策略 v2
+
+**API 使用 `query_bids_advanced` 接口（2积分/次），支持 keyword_groups + match_modes + exclude_keywords。**
+
+核心改进（相比 v1 基础 search_bids）：
+- 使用 `match_modes: ['sm', 'title']` 精准匹配标的物和标题，大幅降低噪音
+- 使用 `keyword_groups` 实现组内 AND、组间 OR 逻辑
+- 使用 `exclude_keywords` 排除不相关公告（建筑/施工/监理等）
+- 使用 `bid_process: [4]` 只取招标公告，避免重复获取中标/合同
+- 按业务线分组，每组独立查询，便于结果分析
+
+**关键词分组（6组，共39个关键词组合）：**
+
+| 分组 | 组合数 | match_modes | 30天命中 | 说明 |
+|---|---|---|---|---|
+| 核心设备运维 | 10 | sm+title | ~58 | 运维/维保 + 小型机/存储/数据库/服务器/网络 |
+| 驻场服务 | 4 | sm+title | ~3 | 驻场+运维/桌面/IT、桌面运维 |
+| 通用IT运维 | 7 | sm+title+fulltext | ~0 | IT运维/IT服务/信息技术服务等（正文中匹配） |
+| 机房数据中心 | 3 | sm+title | ~1 | 机房运维/数据中心运维 |
+| 行业特有 | 3 | sm+title+fulltext | ~163 | 交警/公安+运维/信息化 |
+| 品牌产品 | 5 | sm+title+fulltext | ~0 | IBM/Oracle/Power+维保/运维 |
+
+**排除词：** 建筑、施工、监理、装修、幕墙、消防工程、医疗设备、药品、食材、物业保洁、绿化、园林
+
+**积分预算：** 每组 1-3 页，全量采集约 36 积分/次（18 次查询 × 2 积分）。30天覆盖约 225 条公告（去重后约 150-180 条唯一）。
+
+**实测数据（2026-07-04）：**
+- 旧策略（search_bids 无 match_modes）：2550 条/30天，大量噪音
+- 新策略（query_bids_advanced + keyword_groups）：225 条/30天，高度精准
+- 精准度提升约 10 倍
+
+**配置位置：** `src/server/config.js` → `keywordGroups`，可通过 DB `system_config` 表的 `fetch.keyword_groups` 覆盖。
+
+---
 ## 2. 技术选型
 
 | 层 | 选型 | 理由 |
@@ -320,7 +356,7 @@ flowchart LR
 ### 4.1 各阶段详情
 
 **阶段 1：采集与入库**
-- 知了标讯 API 按关键词拉取公告（默认广东省）
+- 知了标讯 API 使用 query_bids_advanced 高级查询，按 6 组关键词分组 + match_modes + exclude_keywords 拉取广东省招标公告（详见 1.1 关键词策略 v2）
 - 字段映射 + 去重（source_unique_id）
 - 写入 bidding_notice，`ai_status = 0`，`notice_content = ''`
 

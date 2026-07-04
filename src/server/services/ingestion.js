@@ -1,9 +1,9 @@
 /**
- * 知了标讯数据入库服务
- * 将 API 返回的标讯数据映射并写入 bidding_notice 表
+ * 知了标讯数据入库服务 v2
+ * 使用 query_bids_advanced 高级查询，支持 keyword_groups + match_modes + exclude_keywords
  */
 const { supabaseAdmin } = require('../db');
-const { searchBids } = require('./zhiliao-api');
+const { searchBids, queryBidsAdvanced } = require('./zhiliao-api');
 const config = require('../config');
 const { getConfig } = require('./config-reader');
 
@@ -49,7 +49,47 @@ function inferIndustry(smNames) {
 }
 
 /**
- * 批量入库：搜索 → 去重 → 插入
+ * 批量去重插入
+ */
+async function dedupAndInsert(items) {
+  if (items.length === 0) return { inserted: 0, skipped: 0 };
+
+  const sourceIds = items.map(item => String(item.bid_id));
+  const { data: existing } = await supabaseAdmin
+    .from('bidding_notice')
+    .select('source_unique_id')
+    .in('source_unique_id', sourceIds)
+    .eq('platform_id', 1);
+
+  const existingIds = new Set((existing || []).map(r => r.source_unique_id));
+  const newItems = items.filter(item => !existingIds.has(String(item.bid_id)));
+
+  if (newItems.length === 0) return { inserted: 0, skipped: items.length };
+
+  const notices = newItems.map(mapZlbxItemToNotice);
+  const { data: inserted, error } = await supabaseAdmin
+    .from('bidding_notice')
+    .insert(notices)
+    .select('id');
+
+  if (error) {
+    console.error(`[ingestion] 批量插入失败，逐条重试:`, error.message);
+    let count = 0;
+    for (const notice of notices) {
+      const { error: singleError } = await supabaseAdmin
+        .from('bidding_notice')
+        .insert(notice);
+      if (!singleError) count++;
+      else console.error(`[ingestion] 单条失败: ${notice.source_unique_id}`, singleError.message);
+    }
+    return { inserted: count, skipped: items.length - newItems.length + (newItems.length - count) };
+  }
+
+  return { inserted: (inserted || []).length, skipped: items.length - newItems.length };
+}
+
+/**
+ * 基础搜索入库（兼容旧模式，1积分/次）
  */
 async function fetchAndStore(keywords, opts = {}) {
   const pageSize = opts.pageSize || 20;
@@ -64,51 +104,22 @@ async function fetchAndStore(keywords, opts = {}) {
     const { items, total, costUnits } = await searchBids(keywords, {
       page,
       pageSize,
+      matchModes: opts.matchModes || ['sm', 'title'],
       provinces: opts.province ? [opts.province] : ['广东'],
+      bidProcess: opts.bidProcess,
+      beginDate: opts.beginDate,
+      endDate: opts.endDate,
     });
 
     console.log(`[ingestion] 返回 ${items.length} 条 (总计 ${total}, 消耗 ${costUnits} 积分)`);
-
     if (items.length === 0) break;
     totalFetched += items.length;
 
-    const sourceIds = items.map(item => String(item.bid_id));
-    const { data: existing } = await supabaseAdmin
-      .from('bidding_notice')
-      .select('source_unique_id')
-      .in('source_unique_id', sourceIds)
-      .eq('platform_id', 1);
+    const { inserted, skipped } = await dedupAndInsert(items);
+    totalInserted += inserted;
+    totalSkipped += skipped;
+    console.log(`[ingestion] 本页新增 ${inserted} 条, 跳过 ${skipped} 条`);
 
-    const existingIds = new Set((existing || []).map(r => r.source_unique_id));
-    const newItems = items.filter(item => !existingIds.has(String(item.bid_id)));
-    totalSkipped += items.length - newItems.length;
-
-    if (newItems.length === 0) {
-      console.log(`[ingestion] 本页全部已存在，跳过`);
-      if (items.length < pageSize) break;
-      continue;
-    }
-
-    const notices = newItems.map(mapZlbxItemToNotice);
-    const { data: inserted, error } = await supabaseAdmin
-      .from('bidding_notice')
-      .insert(notices)
-      .select('id');
-
-    if (error) {
-      console.error(`[ingestion] 批量插入失败，逐条重试:`, error.message);
-      for (const notice of notices) {
-        const { error: singleError } = await supabaseAdmin
-          .from('bidding_notice')
-          .insert(notice);
-        if (!singleError) totalInserted++;
-        else console.error(`[ingestion] 单条失败: ${notice.source_unique_id}`, singleError.message);
-      }
-    } else {
-      totalInserted += (inserted || []).length;
-    }
-
-    console.log(`[ingestion] 本页新增 ${newItems.length} 条`);
     if (items.length < pageSize) break;
   }
 
@@ -116,31 +127,81 @@ async function fetchAndStore(keywords, opts = {}) {
 }
 
 /**
- * 完整采集流程：从 DB 读取关键词和省份配置
+ * 高级查询入库（2积分/次，支持 keyword_groups）
+ * @param {Object} keywordGroup - { name: string, groups: [{keywords, match_modes}] }
+ * @param {Object} opts - 附加选项
+ */
+async function fetchAndStoreAdvanced(keywordGroup, opts = {}) {
+  const pageSize = opts.pageSize || 20;
+  const maxPages = opts.maxPages || 3;
+  let totalFetched = 0;
+  let totalInserted = 0;
+  let totalSkipped = 0;
+
+  for (let page = 1; page <= maxPages; page++) {
+    console.log(`[ingestion] 高级查询: ${keywordGroup.name} page=${page}`);
+
+    const { items, total, costUnits } = await queryBidsAdvanced({
+      keywordGroups: keywordGroup.groups,
+      matchModes: ['sm', 'title'],
+      excludeKeywords: opts.excludeKeywords,
+      provinces: opts.province ? [opts.province] : ['广东'],
+      bidProcess: opts.bidProcess || [4], // 默认只取招标
+      beginDate: opts.beginDate,
+      endDate: opts.endDate,
+      page,
+      pageSize,
+    });
+
+    console.log(`[ingestion] 返回 ${items.length} 条 (总计 ${total}, 消耗 ${costUnits} 积分)`);
+    if (items.length === 0) break;
+    totalFetched += items.length;
+
+    const { inserted, skipped } = await dedupAndInsert(items);
+    totalInserted += inserted;
+    totalSkipped += skipped;
+    console.log(`[ingestion] 本页新增 ${inserted} 条, 跳过 ${skipped} 条`);
+
+    if (items.length < pageSize) break;
+  }
+
+  return { fetched: totalFetched, inserted: totalInserted, skipped: totalSkipped };
+}
+
+/**
+ * 完整采集流程 v2：使用高级查询 + keyword_groups
  */
 async function runFullIngestion() {
-  console.log('=== 开始全量采集 ===');
+  console.log('=== 开始全量采集 (v2 高级查询模式) ===');
   const startTime = Date.now();
   let totalInserted = 0;
+  let totalCost = 0;
 
-  // 从 DB 读取关键词，回退到 .env 静态配置
-  let keywordsList = await getConfig('fetch.keywords', null);
-  if (!keywordsList || !Array.isArray(keywordsList)) {
-    keywordsList = config.searchKeywords;
+  // 从 DB 读取关键词分组，回退到 config 静态配置
+  let groups = await getConfig('fetch.keyword_groups', null);
+  if (!groups || !Array.isArray(groups)) {
+    groups = config.keywordGroups;
   }
   const province = await getConfig('fetch.province', config.targetProvince);
+  const excludeKeywords = await getConfig('fetch.exclude_keywords', config.excludeKeywords);
+  const beginDate = await getConfig('fetch.begin_date', null);
+  const endDate = await getConfig('fetch.end_date', null);
 
-  for (const kw of keywordsList) {
+  for (const group of groups) {
     try {
-      const result = await fetchAndStore(kw, {
+      const result = await fetchAndStoreAdvanced(group, {
         province,
+        excludeKeywords,
+        beginDate,
+        endDate,
         pageSize: 20,
         maxPages: 3,
+        bidProcess: [4], // 只取招标公告
       });
-      console.log(`[ingestion] ${kw.join('+')}: 取${result.fetched} 新增${result.inserted} 跳过${result.skipped}`);
+      console.log(`[ingestion] [${group.name}] 取${result.fetched} 新增${result.inserted} 跳过${result.skipped}`);
       totalInserted += result.inserted;
     } catch (err) {
-      console.error(`[ingestion] ${kw.join('+')} 失败:`, err.message);
+      console.error(`[ingestion] [${group.name}] 失败:`, err.message);
     }
   }
 
@@ -149,4 +210,4 @@ async function runFullIngestion() {
   return totalInserted;
 }
 
-module.exports = { fetchAndStore, runFullIngestion, mapZlbxItemToNotice };
+module.exports = { fetchAndStore, fetchAndStoreAdvanced, runFullIngestion, dedupAndInsert, mapZlbxItemToNotice };
