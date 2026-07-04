@@ -37,8 +37,9 @@ function timesToCronStr(times) {
 
 const SECTIONS = [
   {
-    title: '数据源 — 知了标讯 API',
+    title: '数据源',
     fields: [
+      { key: 'datasource.name', label: '数据源名称', type: 'text' },
       { key: 'datasource.zlbx.api_key', label: 'API Key', type: 'password' },
       { key: 'datasource.zlbx.base_url', label: 'API 地址', type: 'text' },
     ],
@@ -340,7 +341,7 @@ export default function Settings() {
             <h3 className="text-sm font-semibold text-gray-900 mb-3">系统信息</h3>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div><span className="text-gray-500">版本：</span>1.0.0</div>
-              <div><span className="text-gray-500">数据源：</span>知了标讯 API</div>
+              <div><span className="text-gray-500">数据源：</span>{config['datasource.name']?.value || '知了标讯'}</div>
               <div><span className="text-gray-500">AI 模型：</span>{config['llm.model']?.value || 'mimo-v2.5-pro'}</div>
               <div><span className="text-gray-500">数据库：</span>Supabase (PostgreSQL)</div>
             </div>
