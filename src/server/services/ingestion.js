@@ -191,6 +191,12 @@ async function runFullIngestion() {
   const beginDate = await getConfig('fetch.begin_date', null);
   const endDate = await getConfig('fetch.end_date', null);
 
+  // 读取调优后的 maxPages
+  const tunedMaxPages = await getConfig("fetch.tuned_max_pages", {});
+  if (Object.keys(tunedMaxPages).length > 0) {
+    console.log("[ingestion] 使用调优后的 maxPages:", tunedMaxPages);
+  }
+
   for (const group of groups) {
     try {
       const result = await fetchAndStoreAdvanced(group, {
@@ -199,7 +205,7 @@ async function runFullIngestion() {
         beginDate,
         endDate,
         pageSize: 20,
-        maxPages: 3,
+        maxPages: tunedMaxPages[group.name] || 3,
         bidProcess: [4],
       });
       console.log(`[ingestion] [${group.name}] 取${result.fetched} 新增${result.inserted} 跳过${result.skipped}`);

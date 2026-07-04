@@ -476,6 +476,15 @@ adminCmd
   .action(async (options) => {
     await require('../commands/admin/keyword').report(options);
   });
+adminCmd
+  .command('keyword:tune')
+  .description('查看/执行关键词调优')
+  .option('--apply', '自动应用 maxPages 调整')
+  .option('--json', 'JSON 格式输出')
+  .action(async (options) => {
+    await require('../commands/admin/keyword').tune(options);
+  });
+
 
 
   });

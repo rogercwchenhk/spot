@@ -284,6 +284,33 @@ router.get('/keyword-trend', async (req, res) => {
 });
 
 
+
+// GET /api/admin/keyword-tuner - 获取调优建议
+router.get('/keyword-tuner', async (req, res) => {
+  try {
+    const { runTuner } = require('../services/keyword-tuner');
+    const result = await runTuner({ autoApply: false });
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/admin/keyword-tuner/apply - 执行调优（自动应用）
+router.post('/keyword-tuner/apply', async (req, res) => {
+  try {
+    const { runTuner, applyPageAdjustments, calculatePageAdjustments } = require('../services/keyword-tuner');
+    
+    // 先计算调整
+    const adjustments = await calculatePageAdjustments();
+    const result = await applyPageAdjustments(adjustments);
+    
+    res.json({ success: true, data: { adjustments, applied: result } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // POST /api/admin/keyword-report - 生成并推送关键词效果报告
 router.post('/keyword-report', async (req, res) => {
   try {

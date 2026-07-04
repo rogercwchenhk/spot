@@ -2,6 +2,7 @@
 
 > 版本: v2.0 | 日期: 2026-07-03 | 基于 PRD v2.0 修正
 > 版本: v5.0 | 日期: 2026-07-04 | 新增关键词策略 v2（高级查询+分组+排除词）
+> 版本: v6.0 | 日期: 2026-07-04 | 新增关键词自进化系统（溯源+报告+调优）
 > 版本: v3.0 | 日期: 2026-07-04 | 基于 Phase B 实际验证修正
 > 版本: v4.0 | 日期: 2026-07-04 | 新增招标文件自动下载与存储设计
 ---
@@ -71,6 +72,38 @@
 **配置位置：** `src/server/config.js` → `keywordGroups`，可通过 DB `system_config` 表的 `fetch.keyword_groups` 覆盖。
 
 ---
+
+### 1.2 关键词自进化系统
+
+系统通过三层递进机制实现关键词策略的自动优化：
+
+**Phase 1 — 溯源 + 效果统计**
+- 入库时记录 `keyword_source`（命中的关键词分组名称）
+- `v_keyword_effectiveness` 视图按分组统计 strong/yes/risky/no 数量和有效率
+- `v_keyword_weekly_trend` 视图按周追踪趋势
+
+**Phase 2 — 效果报告 + 企微推送**
+- `keyword-report.js` 生成 Markdown 格式的关键词效果报告
+- 每周一 10:00 自动推送到企微群（cron: `0 10 * * 1`）
+- 报告包含：总览 + 各分组详情 + 优化建议（高效/低效/无数据分组）
+- CLI: `cr admin keyword:report`
+
+**Phase 3 — 自动调优**
+- `keyword-tuner.js` 基于统计数据自动调整采集参数
+- **maxPages 动态调整**：
+  - 有效率 ≥ 30%: maxPages = 5（扩大采集）
+  - 有效率 15-30%: maxPages = 3（保持默认）
+  - 有效率 5-15%: maxPages = 1（缩小采集）
+  - 有效率 < 5%: maxPages = 0（暂停采集）
+- **排除词扩展**：从 no 级别标讯标题中提取高频无关词
+- **新词发现**：从 strong/yes 级别标题中提取潜在新关键词
+- 调优结果写入 `system_config.fetch.tuned_max_pages`
+- CLI: `cr admin keyword:tune`（查看建议）/ `cr admin keyword:tune --apply`（应用）
+
+**自动执行时机：**
+- 采集时自动读取调优后的 maxPages（`ingestion.js` → `getConfig('fetch.tuned_max_pages')`)
+- 完整 pipeline: 采集 → 下载 → AI → 匹配 → 推送（调优建议可在报告中查看后手动应用）
+
 ## 2. 技术选型
 
 | 层 | 选型 | 理由 |

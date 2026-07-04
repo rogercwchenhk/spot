@@ -89,6 +89,77 @@ async function execute(options = {}) {
 }
 
 
+
+/**
+ * cr admin keyword:tune - 查看/执行关键词调优
+ */
+async function tune(options = {}) {
+  try {
+    if (options.apply) {
+      // 执行调优并应用
+      const result = await apiRequest('/api/admin/keyword-tuner/apply', 'POST');
+      if (!result.success) {
+        error(result.error || '调优失败');
+        return;
+      }
+      const { adjustments, applied } = result.data;
+      console.log('\n=== 关键词调优已应用 ===\n');
+      for (const a of adjustments) {
+        if (a.recommended_pages !== null) {
+          console.log(`  ${a.name}: maxPages → ${a.recommended_pages} (${a.reason})`);
+        }
+      }
+      console.log(`\n已更新 ${applied.applied} 个分组的 maxPages`);
+      return;
+    }
+
+    // 只查看建议
+    const result = await apiRequest('/api/admin/keyword-tuner');
+    if (!result.success) {
+      error(result.error || '获取调优建议失败');
+      return;
+    }
+
+    if (options.json) {
+      output(result.data, { json: true });
+      return;
+    }
+
+    const { page_adjustments, exclude_suggestions, new_keyword_suggestions } = result.data;
+
+    // maxPages 调整建议
+      console.log('\n=== maxPages 调整建议 ===\n');
+    for (const a of page_adjustments) {
+      const pages = a.recommended_pages !== null ? `→ ${a.recommended_pages}页` : '(保持默认)';
+      console.log(`  ${a.name}: ${pages} | ${a.reason}`);
+    }
+
+    // 排除词建议
+    if (exclude_suggestions.length > 0) {
+      console.log('\n=== 排除词建议 ===\n');
+      for (const s of exclude_suggestions) {
+        console.log(`  + "${s.word}" (${s.count}次) — ${s.reason}`);
+      }
+    }
+
+    // 新词建议
+    if (new_keyword_suggestions.length > 0) {
+      console.log('\n=== 新关键词建议 ===\n');
+      for (const s of new_keyword_suggestions) {
+        console.log(`  + "${s.word}" (${s.count}次) — ${s.reason}`);
+      }
+    }
+
+    if (exclude_suggestions.length === 0 && new_keyword_suggestions.length === 0) {
+      console.log('\n暂无排除词或新关键词建议');
+    }
+
+    console.log('\n提示: 执行 cr admin keyword:tune --apply 自动应用 maxPages 调整');
+  } catch (err) {
+    error('请求失败: ' + err.message);
+  }
+}
+
 /**
  * cr admin keyword:report - 生成并推送关键词效果报告
  */
