@@ -88,4 +88,35 @@ async function execute(options = {}) {
   }
 }
 
-module.exports = { execute };
+
+/**
+ * cr admin keyword:report - 生成并推送关键词效果报告
+ */
+async function report(options = {}) {
+  try {
+    const result = await apiRequest('/api/admin/keyword-report', 'POST', { weekly: !options.monthly });
+
+    if (!result.success) {
+      error(result.error || '生成报告失败');
+      return;
+    }
+
+    if (options.json) {
+      output(result.data, { json: true });
+      return;
+    }
+
+    console.log('\n=== 关键词效果报告已生成 ===');
+    if (result.data?.pushed) {
+      console.log('已推送到企微群');
+    } else {
+      console.log('报告内容:');
+      console.log(result.data?.markdown || '(无内容)');
+    }
+  } catch (err) {
+    error('请求失败: ' + err.message);
+  }
+}
+
+module.exports = { execute, report };
+

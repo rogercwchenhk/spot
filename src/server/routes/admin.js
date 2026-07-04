@@ -283,6 +283,32 @@ router.get('/keyword-trend', async (req, res) => {
   }
 });
 
+
+// POST /api/admin/keyword-report - 生成并推送关键词效果报告
+router.post('/keyword-report', async (req, res) => {
+  try {
+    const { weekly = true } = req.body;
+    const { generateKeywordReport } = require('../services/keyword-report');
+    const { pushKeywordReport } = require('../services/wecom-notify');
+
+    const report = await generateKeywordReport({ weekly });
+    
+    // 推送到企微
+    const pushResult = await pushKeywordReport(weekly);
+
+    res.json({ 
+      success: true, 
+      data: { 
+        markdown: report.markdown, 
+        stats: report.stats,
+        pushed: pushResult.success 
+      } 
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // GET /api/admin/users - 列出用户（简化版）
 router.get('/users', async (req, res) => {
   try {

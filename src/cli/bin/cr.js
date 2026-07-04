@@ -468,6 +468,15 @@ adminCmd
   .action(async (options) => {
     await require('../commands/admin/keyword').execute(options);
   });
+adminCmd
+  .command('keyword:report')
+  .description('生成关键词效果报告')
+  .option('--monthly', '月报（默认周报）')
+  .option('--json', 'JSON 格式输出')
+  .action(async (options) => {
+    await require('../commands/admin/keyword').report(options);
+  });
+
 
   });
 

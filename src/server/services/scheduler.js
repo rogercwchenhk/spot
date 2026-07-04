@@ -7,7 +7,7 @@ const { downloadBatch } = require('./doc-downloader');
 const { runFullIngestion } = require('./ingestion');
 const { processPendingNotices } = require('./ai-pipeline');
 const { calculatePendingMatches } = require('./match-engine');
-const { pushDailyReport } = require('./wecom-notify');
+const { pushDailyReport, pushKeywordReport } = require('./wecom-notify');
 const { getConfig } = require('./config-reader');
 
 const DEFAULT_CRON_PUSH = '0 9,14 * * *';
@@ -46,14 +46,6 @@ async function runFullPipeline() {
     throw err;
   }
 }
-    console.log(`\n=== 采集处理完成, 耗时 ${elapsed}s ===`);
-
-    return { ingestion: ingestionResult, ai: aiResult, match: matchResult };
-  } catch (err) {
-    console.error('=== 采集处理失败 ===', err.message);
-    throw err;
-  }
-}
 
 async function startScheduler() {
   // 推送任务
@@ -67,6 +59,22 @@ async function startScheduler() {
       console.error('[scheduler] 推送失败:', err.message);
     }
   });
+
+  // 关键词效果报告（每周一 10:00 推送）
+  const keywordReportCron = await getConfig('push.keyword_report_cron', '0 10 * * 1');
+  console.log(`[scheduler] 关键词报告: ${keywordReportCron}`);
+  if (cron.validate(keywordReportCron)) {
+    cron.schedule(keywordReportCron, async () => {
+      console.log(`
+[scheduler] 开始推送关键词效果报告 ${new Date().toISOString()}`);
+      try {
+        const { pushKeywordReport } = require('./wecom-notify');
+        await pushKeywordReport(true);
+      } catch (err) {
+        console.error('[scheduler] 关键词报告推送失败:', err.message);
+      }
+    });
+  }
 
   // 采集任务：支持多时段
   let schedules = await getConfig('fetch.schedules', null);

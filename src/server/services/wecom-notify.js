@@ -239,8 +239,22 @@ async function pushDailyReport() {
 /**
  * 测试推送
  */
+/**
+ * 推送关键词效果报告
+ * @param {boolean} weekly - 是否为周报
+ */
+async function pushKeywordReport(weekly = true) {
+  const { generateKeywordReport } = require('./keyword-report');
+  const { markdown } = await generateKeywordReport({ weekly });
+  const result = await sendMarkdown(markdown);
+  if (result.success) {
+    console.log('[wecom] 关键词效果报告推送成功');
+  }
+  return result;
+}
+
 async function testPush() {
   return await sendMarkdown('## 🔔 客户雷达推送测试\n\n企微推送功能已配置成功！');
 }
 
-module.exports = { pushNoticeNotification, pushNewMatches, pushDailyReport, testPush, sendMarkdown };
+module.exports = { pushNoticeNotification, pushNewMatches, pushDailyReport, pushKeywordReport, testPush, sendMarkdown };
