@@ -9,7 +9,7 @@ const { getConfig } = require('./config-reader');
 const DEFAULT_BASE_URL = config.zlbx.baseUrl;
 const DEFAULT_API_KEY = config.zlbx.apiKey;
 
-// 限流：5次/秒
+// 限流：5次/秒，2000次/分钟
 let lastCallTime = 0;
 const MIN_INTERVAL_MS = 210;
 
@@ -61,7 +61,7 @@ async function searchBids(keywords, opts = {}) {
     page_size: opts.pageSize || 20,
   };
 
-  if (opts.province) body.province = opts.province;
+  if (opts.provinces) body.provinces = Array.isArray(opts.provinces) ? opts.provinces : [opts.provinces];
   if (opts.bidType) body.bid_type = opts.bidType;
 
   const result = await rateLimitedFetch('search_bids', body);
@@ -75,8 +75,13 @@ async function searchBids(keywords, opts = {}) {
 /**
  * 获取标讯详情
  */
-async function getBidDetail(bidId) {
-  const result = await rateLimitedFetch('bid_detail', { bid_id: bidId });
+async function getBidDetail(bidId, opts = {}) {
+  const body = {};
+  if (opts.bid_url) body.bid_url = opts.bid_url;
+  else if (opts.uniq_key) body.uniq_key = opts.uniq_key;
+  else body.bid_id = Number(bidId);
+
+  const result = await rateLimitedFetch('get_bid_detail', body);
   return result.data;
 }
 

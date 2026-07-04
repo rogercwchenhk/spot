@@ -64,7 +64,7 @@ async function fetchAndStore(keywords, opts = {}) {
     const { items, total, costUnits } = await searchBids(keywords, {
       page,
       pageSize,
-      province: opts.province,
+      provinces: opts.province ? [opts.province] : ['广东'],
     });
 
     console.log(`[ingestion] 返回 ${items.length} 条 (总计 ${total}, 消耗 ${costUnits} 积分)`);

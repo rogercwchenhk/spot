@@ -8,6 +8,8 @@ const { supabaseAdmin, supabaseAdmin: supabaseWrite } = require('../db');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { processNotice, processPendingNotices, resetAllAiStatus } = require('../services/ai-pipeline');
 const { calculateMatch, calculatePendingMatches } = require('../services/match-engine');
+const { downloadNoticeDoc, downloadBatch } = require('../services/doc-downloader');
+const { extractNoticeScoring, extractBatch } = require('../services/scoring-extractor');
 const { pushNoticeNotification, pushNewMatches, testPush } = require('../services/wecom-notify');
 const { fetchAndStore } = require('../services/ingestion');
 
@@ -55,6 +57,50 @@ router.post('/notices/process-batch', async (req, res) => {
   }
 });
 
+
+// POST /api/admin/notices/:id/download - 下载单条标讯的招标文件
+router.post('/notices/:id/download', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await downloadNoticeDoc(Number(id));
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/admin/notices/download-batch - 批量下载招标文件
+router.post('/notices/download-batch', async (req, res) => {
+  try {
+    const { limit = 20 } = req.body;
+    const result = await downloadBatch(limit);
+    res.json({ success: true, data: result });
+
+// POST /api/admin/notices/:id/scoring - 提取评分标准
+router.post('/notices/:id/scoring', async (req, res) => {
+  try {
+    const result = await extractNoticeScoring(Number(req.params.id));
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/admin/notices/scoring-batch - 批量提取评分标准
+router.post('/notices/scoring-batch', async (req, res) => {
+  try {
+    const { limit = 20 } = req.body;
+    const result = await extractBatch(limit);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 // POST /api/admin/match/:noticeId - 计算单条匹配
 router.post('/match/:noticeId', async (req, res) => {
   try {

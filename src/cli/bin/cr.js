@@ -381,6 +381,27 @@ adminCmd
     await require('../commands/admin/notice').match(id, options);
   });
 
+
+adminCmd
+  .command('notice:download [id]')
+  .description('下载招标文件')
+  .option('--batch', '批量下载')
+  .option('--limit <limit>', '批量下载数量', '20')
+  .option('--json', 'JSON 格式输出')
+  .action(async (id, options) => {
+    await require('../commands/admin/notice').download(id, options);
+  });
+
+adminCmd
+  .command('notice:scoring [id]')
+  .description('提取评分标准')
+  .option('--batch', '批量提取')
+  .option('--limit <limit>', '批量数量', '20')
+  .option('--json', 'JSON 格式输出')
+  .action(async (id, options) => {
+    await require('../commands/admin/notice').scoring(id, options);
+  });
+
 // 推送管理
 adminCmd
   .command('push:test')

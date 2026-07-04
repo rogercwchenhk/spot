@@ -2,6 +2,7 @@
 
 > 版本: v2.0 | 日期: 2026-07-03 | 基于 PRD v2.0 修正
 > 版本: v3.0 | 日期: 2026-07-04 | 基于 Phase B 实际验证修正
+> 版本: v4.0 | 日期: 2026-07-04 | 新增招标文件自动下载与存储设计
 ---
 
 ## 1. 项目定位
@@ -13,6 +14,8 @@
 - **匹配为核心**：不只是“看标讯”，而是基于公司能力评估与标讯需求的契合度
 
 ### 数据源约束（重要）
+
+**API 限流：** 5次/秒，2000次/分钟。调用间隔 ≥210ms。
 
 **知了标讯 API 只返回元数据，不含招标文件正文。** 实际返回字段：title、bid_type、money_wan、province、city、caller_name、agency_name、sm_names、signup_time、tender_time、url、exists_bid_file 等。`notice_content` 在入库时为空。
 
@@ -252,6 +255,46 @@ CREATE TABLE system_config (
 
 通过 `cr admin config:*` 管理，修改后重启服务生效。
 
+### 3.11 bid_document — 招标文件存储表
+
+存储从原发布网站自动下载的招标文件（PDF/Word），文件本体存 Supabase Storage，元数据存本表。
+
+```sql
+CREATE TABLE bid_document (
+  id              BIGSERIAL PRIMARY KEY,
+  notice_id       BIGINT NOT NULL REFERENCES bidding_notice(id) ON DELETE CASCADE,
+  file_name       VARCHAR(255) NOT NULL,        -- 原始文件名
+  file_type       VARCHAR(20) NOT NULL,          -- pdf / doc / docx
+  file_size       BIGINT,                        -- 字节数
+  storage_path    VARCHAR(500) NOT NULL,         -- Supabase Storage 路径 (bid-documents bucket)
+  source_download_url TEXT,                      -- 原站原始下载链接
+  download_status VARCHAR(20) DEFAULT 'pending'
+    CHECK (download_status IN ('pending', 'downloading', 'completed', 'failed')),
+  error_message   TEXT,                          -- 下载/解析失败原因
+  downloaded_at   TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+COMMENT ON TABLE  bid_document IS '招标文件存储表（PDF/Word），文件存 Supabase Storage，本表存元数据';
+COMMENT ON COLUMN bid_document.storage_path IS 'Supabase Storage 路径，格式: {notice_id}/{file_name}';
+COMMENT ON COLUMN bid_document.download_status IS '下载状态: pending(待下载)/downloading(下载中)/completed(已完成)/failed(失败)';
+COMMENT ON COLUMN bid_document.source_download_url IS '原发布网站的原始下载链接（非知了中转页）';
+```
+
+**索引：**
+- `idx_bid_doc_notice` — notice_id 查询
+- `idx_bid_doc_status` — download_status 批量捞取待下载
+
+**关联关系：**
+- 一个 bidding_notice 可对应多条 bid_document（同一公告可能有多个文件：正文、附件、答疑等）
+- bidding_notice.doc_access_type 仍保留，标记获取方式；bid_document.download_status 标记单个文件的下载状态
+
+**Supabase Storage 配置：**
+- Bucket: `bid-documents`
+- 路径格式: `{notice_id}/{file_name}`
+- 访问策略: service_role 可读写，authenticated 可读
+
 ---
 
 ## 4. AI Pipeline 流程
@@ -259,7 +302,11 @@ CREATE TABLE system_config (
 ```mermaid
 flowchart LR
     A[知了API采集] --> B[入库 ai_status=0]
-    B --> C[规则引擎提取]
+    B --> DL{招标文件下载}
+    DL -->|free| DL2[下载PDF/Word→Storage]
+    DL -->|paid/registration| DL3[标记跳过]
+    DL2 --> C[规则引擎提取]
+    DL3 --> C
     C --> D{行业/类型明确?}
     D -->|否| E[mimo AI 补充分类]
     D -->|是| F[写入 ai_extracted_fields]
@@ -315,19 +362,138 @@ flowchart LR
 
 **当前数据验证**（226 条标讯）：7 strong / 54 yes / 122 risky / 43 no
 
-### 4.2 招标文件获取（第二阶段）
+### 4.2 招标文件自动下载与存储
 
-当前阶段匹配基于元数据做能力契合度评估。如需精确的“逐项扣分”匹配，需要获取招标文件正文：
+在 AI Pipeline 元数据提取之前，新增招标文件下载步骤。已下载文件存储在 Supabase Storage（`bid-documents` bucket），元数据记录在 `bid_document` 表。
 
-1. 从 `source_url`（知了中转页）找到原发布网站链接
-2. 检查获取方式：免费下载 / 需报名 / 收费购买
-3. 免费文件：下载 PDF/Word，AI 提取资质要求和评分标准
-4. 收费文件：标记 `doc_access_type = 'paid'`，跳过
-5. 需报名：标记 `doc_access_type = 'registration_required'`，人工跟进
+**下载流程：**
 
-**约束**：收费招标文件一律跳过并标记，不付费获取。
+```
+bidding_notice (notice_type = 'tender', doc_access_type = 'unknown')
+  → get_bid_detail API (source_unique_id)
+  → 获取 attachment_urls[]
+  → 智能筛选:
+      有 ZIP → 只下载 ZIP（含完整招标文件）
+      无 ZIP → 下载 PDF/DOCX（可能是代理协议）
+  → 下载 → 存入 Supabase Storage
+  → 如果是 ZIP → 解压，提取招标文件 PDF/DOCX
+  → 记录 bid_document 表
+  → 更新 doc_access_type = 'free'
+```
+
+**文件类型支持：** PDF、DOC、DOCX、ZIP（自动解压）
+
+**实际数据验证：**
+- 约 13% 的标讯有附件（get_bid_detail 返回 attachment_urls 非空）
+- 有附件的标讯中，约一半包含 ZIP 文件
+- ZIP 内才是完整的招标文件（含评分标准、资质要求）
+- 直接附件通常是代理协议 PDF，不含评分标准
+
+**附件类型分析：**
+
+| 附件类型 | 内容 | 价值 |
+|---|---|---|
+| ZIP | 招标文件全文（含评分标准） | **高** |
+| PDF（非 ZIP 内） | 代理协议、补充说明 | 低 |
+| DOCX（非 ZIP 内） | 采购需求章节（部分） | 中 |
+| PNG | 截图 | 无 |
+
+**约束：**
+- 只处理 notice_type = 'tender' 的标讯（中标公告、变更公告无招标文件）
+- 有 ZIP 时只下载 ZIP，跳过其他附件（减少无效下载）
+- 收费招标文件一律跳过并标记
+- 下载失败不影响主 Pipeline
+- 单文件上限 50MB
+
+**API 接口：**
+
+| 接口 | 说明 |
+|---|---|
+| `POST /api/admin/notices/:id/download` | 单条下载 |
+| `POST /api/admin/notices/download-batch` | 批量下载（tender 类型） |
+
+**CLI 命令：**
+
+| 命令 | 说明 |
+|---|---|
+| `cr admin notice:download <id>` | 下载单条标讯的招标文件 |
+| `cr admin notice:download --batch` | 批量下载 |
+
+**Pipeline 集成：** 采集入库后、AI 提取前插入文件下载步骤。
+
+
+### 4.3 评分标准提取与 AI 文件选择策略
+
+从已下载的招标文件中提取评分标准和资质要求，存入 `notice_scoring` 表。
+
+**提取流程：**
+
+```
+bid_document (file_type = pdf/docx/doc, download_status = completed)
+  → 文件选择（见下方策略）
+  → Python 提取文本 (PyPDF2 / python-docx)
+  → mimo AI 结构化解析
+  → 写入 notice_scoring 表
+```
+
+**AI 解析文件选择策略：**
+
+| 优先级 | 条件 | 说明 |
+|---|---|---|
+| 1 | 文件名含"招标"/"采购文件" + ≥50KB | ZIP 解压出的招标文件全文，最准确 |
+| 2 | 文件名含"招标"/"采购文件" + <50KB | 可能是招标文件封面或目录，价值有限 |
+| 3 | 最大的 PDF/DOCX + ≥50KB | 可能是完整招标文件 |
+| 4 | <50KB 的文件 | **跳过**（封面、授权书、补充说明） |
+
+**文件大小过滤：**
+- 最小阈值：50KB（小于 50KB 的文件不是完整招标文件）
+- 最大阈值：50MB（超过则跳过）
+
+**为什么需要过滤：**
+- <50KB 的文件通常是：封面页、目录、授权书、承诺函、补充说明
+- 这些文件不含评分标准，浪费 AI 积分
+- 实测 12KB 和 17KB 的文件分别是补充说明和小附件
+
+**评分标准结构：**
+
+```json
+{
+  "scoring": {
+    "total": 100,
+    "categories": [
+      {
+        "name": "技术部分",
+        "max_score": 70,
+        "items": [
+          {"item": "评分项", "score": 18, "rule": "评分规则"}
+        ]
+      }
+    ]
+  },
+  "qualifications": [
+    {"type": "资质类型", "requirement": "具体要求", "mandatory": true}
+  ],
+  "summary": "评分概述"
+}
+```
+
+**API 接口：**
+
+| 接口 | 说明 |
+|---|---|
+| `POST /api/admin/notices/:id/scoring` | 单条提取 |
+| `POST /api/admin/notices/scoring-batch` | 批量提取 |
+
+**CLI 命令：**
+
+| 命令 | 说明 |
+|---|---|
+| `cr admin notice:scoring <id>` | 提取单条评分标准 |
+| `cr admin notice:scoring --batch` | 批量提取 |
 
 ---
+
+## 5. 查询场景
 
 ## 5. 查询场景
 
@@ -368,6 +534,7 @@ customer radar/
 │   │   │   ├── ai-pipeline.js
 │   │   │   ├── match-engine.js
 │   │   │   ├── wecom-notify.js
+│   │   │   ├── doc-downloader.js  ← 新增：招标文件下载服务
 │   │   │   └── scheduler.js
 │   │   └── routes/
 │   │       ├── notices.js

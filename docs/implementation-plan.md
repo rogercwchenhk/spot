@@ -352,6 +352,43 @@ async function notifyWeChat(notice, matchResult) {
 
 **交付物：** 可安装到手机主屏幕的 PWA 应用 + 双角色 CLI 工具
 
+
+### Phase 2.5: 招标文件自动下载（Week 3-4）
+
+**目标：自动下载免费招标文件，为后续精确匹配打基础**
+
+- [ ] Supabase Storage 创建 `bid-documents` bucket
+- [ ] 数据库迁移：`bid_document` 表（019_bid_document.sql）
+- [ ] 招标文件下载服务 `doc-downloader.js`：
+  - 知了中转页 HTML 解析 → 原站链接提取
+  - PDF/Word 文件识别与下载
+  - 上传 Supabase Storage + 元数据入库
+- [ ] API 接口：`POST /api/admin/notices/:id/download` + `download-batch`
+- [ ] CLI 命令：`cr admin notice:download <id>` + `--batch`
+- [x] Pipeline 集成：采集后、AI 提取前插入下载步骤
+- [ ] 错误处理：下载失败标记状态，不影响主流程
+
+**交付物：** 自动下载免费招标文件，存入 Supabase Storage，前端可查看/下载
+
+### Phase 2.6: 评分标准自动提取（Week 4）
+
+**目标：从招标文件中自动提取评分标准和资质要求**
+
+- [x] notice_scoring 表（020_notice_scoring.sql）
+- [x] PDF/DOCX 文本提取（Python PyPDF2）
+- [x] AI 结构化解析（mimo）
+- [x] API + CLI 接口
+- [ ] 批量提取已下载的招标文件
+
+**关键发现：**
+- 招标文件在 ZIP 附件中，不在直接附件中
+- ZIP 解压后 PDF 通常是完整招标文件（63页，50K字）
+- 评分标准在"详细评审"章节
+- 只处理 notice_type=tender 的标讯
+- 小于 50KB 的文件跳过（封面/授权书/补充说明）
+
+**交付物：** 从招标文件自动提取评分标准，存入结构化数据库
+
 ### Phase 3: 打磨 + 扩展（Week 4+）
 
 - [ ] 销售标注功能：已跟进 / 忽略 / 已投标
@@ -386,7 +423,8 @@ customer radar/
 │       ├── 009_ai_friendly_enhancements.sql
 │       ├── 010_seed_qualification_data.sql
 │       ├── 011_fix_rls_anon_read.sql
-│       └── 012_company_contract.sql
+│       ├── 012_company_contract.sql
+│       ├── 019_bid_document.sql         ← 新增：招标文件存储表
 ├── src/
 │   ├── server/
 │   │   ├── index.js
@@ -396,6 +434,7 @@ customer radar/
 │   │   │   ├── ai-pipeline.js
 │   │   │   ├── match-engine.js
 │   │   │   ├── wecom-notify.js
+│   │   │   ├── doc-downloader.js  ← 新增：招标文件下载服务
 │   │   │   └── scheduler.js
 │   │   └── routes/
 │   │       ├── notices.js

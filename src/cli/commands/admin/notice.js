@@ -105,4 +105,66 @@ async function match(id, options = {}) {
   }
 }
 
-module.exports = { fetch, process: processNotice, match };
+
+async function download(id, options = {}) {
+  try {
+    let result;
+    
+    if (options.batch || !id) {
+      info('开始批量下载招标文件...');
+      result = await apiRequest('/api/admin/notices/download-batch', {
+        method: 'POST',
+        body: JSON.stringify({ limit: options.limit || 20 }),
+      });
+    } else {
+      info(`下载标讯 #${id} 的招标文件...`);
+      result = await apiRequest(`/api/admin/notices/${id}/download`, {
+        method: 'POST',
+      });
+    }
+
+    if (!result.success) {
+      error(result.error || '下载失败');
+      return;
+    }
+
+    if (options.json) {
+      output(result.data, { json: true });
+      return;
+    }
+
+    if (options.batch) {
+      success(`批量下载完成: 成功${result.data.success} 失败${result.data.failed} 跳过${result.data.skipped}`);
+    } else {
+      success(`下载结果: ${result.data.message}`);
+    }
+  } catch (err) {
+    error(`请求失败: ${err.message}`);
+  }
+}
+
+
+async function scoring(id, options = {}) {
+  try {
+    let result;
+    if (options.batch || !id) {
+      info('开始批量提取评分标准...');
+      result = await apiRequest('/api/admin/notices/scoring-batch', {
+        method: 'POST',
+        body: JSON.stringify({ limit: options.limit || 20 }),
+      });
+    } else {
+      info('提取标讯 #' + id + ' 评分标准...');
+      result = await apiRequest('/api/admin/notices/' + id + '/scoring', { method: 'POST' });
+    }
+    if (!result.success) { error(result.error || '提取失败'); return; }
+    if (options.json) { output(result.data, { json: true }); return; }
+    if (options.batch) {
+      success('评分提取完成: ' + result.data.success + ' 成功, ' + result.data.failed + ' 失败');
+    } else {
+      success('提取完成: ' + result.data.message);
+    }
+  } catch (err) { error('请求失败: ' + err.message); }
+}
+
+module.exports = { fetch, process: processNotice, match, download, scoring };

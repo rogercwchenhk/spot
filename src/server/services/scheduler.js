@@ -3,6 +3,7 @@
  * 采集与推送分离，支持多时段采集，cron 表达式从数据库读取
  */
 const cron = require('node-cron');
+const { downloadBatch } = require('./doc-downloader');
 const { runFullIngestion } = require('./ingestion');
 const { processPendingNotices } = require('./ai-pipeline');
 const { calculatePendingMatches } = require('./match-engine');
@@ -13,26 +14,38 @@ const DEFAULT_CRON_PUSH = '0 9,14 * * *';
 const DEFAULT_FETCH_SCHEDULES = ['0 8 * * *', '0 12 * * *', '0 18 * * *', '0 23 * * *'];
 
 /**
- * 采集 + AI + 匹配（不推送）
+ * 采集 + 下载招标文件 + AI + 匹配（不推送）
  */
 async function runFullPipeline() {
   console.log('=== 开始采集处理流程 ===');
   const startTime = Date.now();
 
   try {
-    console.log('\n[1/3] 采集标讯...');
+    console.log('\n[1/4] 采集标讯...');
     const ingestionResult = await runFullIngestion();
-    console.log(`[1/3] 采集完成: 新增 ${ingestionResult} 条`);
+    console.log(`[1/4] 采集完成: 新增 ${ingestionResult} 条`);
 
-    console.log('\n[2/3] AI Pipeline 处理...');
+    console.log('\n[2/4] 下载招标文件...');
+    const downloadResult = await downloadBatch(20);
+    console.log(`[2/4] 下载完成: 成功${downloadResult.success} 失败${downloadResult.failed} 跳过${downloadResult.skipped}`);
+
+    console.log('\n[3/4] AI Pipeline 处理...');
     const aiResult = await processPendingNotices(20);
-    console.log(`[2/3] AI 处理完成: ${aiResult.processed} 成功, ${aiResult.failed} 失败`);
+    console.log(`[3/4] AI 处理完成: ${aiResult.processed} 成功, ${aiResult.failed} 失败`);
 
-    console.log('\n[3/3] 匹配引擎计算...');
+    console.log('\n[4/4] 匹配引擎计算...');
     const matchResult = await calculatePendingMatches(50);
-    console.log(`[3/3] 匹配完成: ${matchResult.calculated} 成功, ${matchResult.failed} 失败`);
+    console.log(`[4/4] 匹配完成: ${matchResult.calculated} 成功, ${matchResult.failed} 失败`);
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`\n=== 采集处理完成, 耗时 ${elapsed}s ===`);
+
+    return { ingestion: ingestionResult, download: downloadResult, ai: aiResult, match: matchResult };
+  } catch (err) {
+    console.error('=== 采集处理失败 ===', err.message);
+    throw err;
+  }
+}
     console.log(`\n=== 采集处理完成, 耗时 ${elapsed}s ===`);
 
     return { ingestion: ingestionResult, ai: aiResult, match: matchResult };
