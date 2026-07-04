@@ -1,11 +1,13 @@
 /**
  * 知了标讯 API 客户端
  * 文档: https://ai.zhiliaobiaoxun.com/docs/api
+ * 配置优先从 DB 读取，回退到 .env
  */
 const config = require('../config');
+const { getConfig } = require('./config-reader');
 
-const BASE_URL = config.zlbx.baseUrl;
-const API_KEY = config.zlbx.apiKey;
+const DEFAULT_BASE_URL = config.zlbx.baseUrl;
+const DEFAULT_API_KEY = config.zlbx.apiKey;
 
 // 限流：5次/秒
 let lastCallTime = 0;
@@ -16,6 +18,9 @@ async function sleep(ms) {
 }
 
 async function rateLimitedFetch(endpoint, body) {
+  const baseUrl = await getConfig('datasource.zlbx.base_url', DEFAULT_BASE_URL);
+  const apiKey = await getConfig('datasource.zlbx.api_key', DEFAULT_API_KEY);
+
   const now = Date.now();
   const elapsed = now - lastCallTime;
   if (elapsed < MIN_INTERVAL_MS) {
@@ -23,11 +28,11 @@ async function rateLimitedFetch(endpoint, body) {
   }
   lastCallTime = Date.now();
 
-  const url = `${BASE_URL}/${endpoint}`;
+  const url = `${baseUrl}/${endpoint}`;
   const resp = await fetch(url, {
     method: 'POST',
     headers: {
-      'X-API-Key': API_KEY,
+      'X-API-Key': apiKey,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
@@ -48,13 +53,6 @@ async function rateLimitedFetch(endpoint, body) {
 
 /**
  * 搜索招中标
- * @param {string[]} keywords - 关键词数组
- * @param {object} opts
- * @param {number} opts.page - 页码 (默认1)
- * @param {number} opts.pageSize - 每页数量 (默认20)
- * @param {string} opts.province - 省份筛选
- * @param {string} opts.bidType - 招标/中标
- * @returns {Promise<{total: number, items: Array}>}
  */
 async function searchBids(keywords, opts = {}) {
   const body = {
@@ -76,8 +74,6 @@ async function searchBids(keywords, opts = {}) {
 
 /**
  * 获取标讯详情
- * @param {number} bidId
- * @returns {Promise<object>}
  */
 async function getBidDetail(bidId) {
   const result = await rateLimitedFetch('bid_detail', { bid_id: bidId });
