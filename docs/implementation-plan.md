@@ -318,7 +318,7 @@ async function notifyWeChat(notice, matchResult) {
 **目标：跑通全链路，企微群收到匹配标讯**
 
 - [ ] Supabase 建表迁移（bidding_notice 补充字段 + 资质表 + 匹配结果表）
-- [ ] 知了标讯 API 对接：Node.js 定时任务，每 2 小时拉取广东省 IT 运维类公告
+- [x] 知了标讯 API 对接：Node.js 定时任务，每天 12:00 和 23:00 拉取广东省 IT 运维类公告
 - [ ] 数据清洗入库：去重、字段映射、`ai_status = 0`
 - [x] AI Pipeline v2：元数据规则提取 + mimo AI 补充分类（已完成 226 条）
 - [x] 公司资质 + 人员资质数据录入（已录入 7 公司资质 + 11 人员资质）

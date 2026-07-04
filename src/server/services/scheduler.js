@@ -8,7 +8,7 @@ const { processPendingNotices } = require('./ai-pipeline');
 const { calculatePendingMatches } = require('./match-engine');
 const { pushNewMatches } = require('./wecom-notify');
 
-const CRON_SCHEDULE = '0 */2 * * *'; // 每2小时
+const CRON_SCHEDULE = '0 12,23 * * *'; // 每天 12:00 和 23:00
 
 /**
  * 完整处理流程
