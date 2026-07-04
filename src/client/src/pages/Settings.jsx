@@ -5,7 +5,6 @@ import { Save, RefreshCw, Pencil, X, Plus, Trash2 } from 'lucide-react';
 
 // ── cron ↔ 时间列表互转 ──────────────────────────────────
 
-// fetch.schedules: cron 数组 → 时间列表
 function cronArrToTimes(cronArr) {
   if (!Array.isArray(cronArr)) return ['08:00', '12:00', '18:00', '23:00'];
   return cronArr.map(c => {
@@ -14,7 +13,6 @@ function cronArrToTimes(cronArr) {
   }).sort();
 }
 
-// 时间列表 → cron 数组
 function timesToCronArr(times) {
   return times.sort().map(t => {
     const [h, m] = t.split(':');
@@ -22,7 +20,6 @@ function timesToCronArr(times) {
   });
 }
 
-// push.schedule: 单条 cron "0 9,14 * * *" → 时间列表
 function cronStrToTimes(cronStr) {
   if (!cronStr || typeof cronStr !== 'string') return ['09:00', '14:00'];
   const parts = cronStr.split(' ');
@@ -31,7 +28,6 @@ function cronStrToTimes(cronStr) {
   return hours.filter(Boolean).map(h => `${String(h).padStart(2, '0')}:${String(minute).padStart(2, '0')}`).sort();
 }
 
-// 时间列表 → 单条 cron
 function timesToCronStr(times) {
   if (times.length === 0) return '0 9 * * *';
   const minute = Number(times[0].split(':')[1]);
@@ -151,7 +147,6 @@ export default function Settings() {
     setEdited({}); setEditingKey(null); fetchConfig(); setSaving(false);
   };
 
-  // ── 采集时间保存 ────────────────────────────
   const saveFetchSchedule = async () => {
     setSaving(true); setMsg('');
     try {
@@ -161,7 +156,6 @@ export default function Settings() {
     finally { setSaving(false); }
   };
 
-  // ── 推送时间保存 ────────────────────────────
   const savePushSchedule = async () => {
     setSaving(true); setMsg('');
     try {
@@ -249,21 +243,24 @@ export default function Settings() {
     <div className="bg-white rounded-xl border border-gray-200 p-5">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
-        {editing ? (
-          <div className="flex gap-2">
-            <button onClick={onSave} disabled={saving}
-              className="inline-flex items-center gap-1 text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700">
-              <Save size={12} /> 保存
+        <div className="flex gap-2">
+          {!editing && (
+            <button onClick={() => setEditing(true)}
+              className="inline-flex items-center gap-1 text-xs border border-gray-200 text-gray-600 px-2 py-1 rounded hover:bg-gray-100">
+              <Pencil size={12} /> 编辑
             </button>
+          )}
+          <button onClick={onSave} disabled={saving || !editing}
+            className={`inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg ${
+              editing ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+            }`}>
+            <Save size={12} /> 保存
+          </button>
+          {editing && (
             <button onClick={() => { setEditing(false); fetchConfig(); }}
               className="text-xs text-gray-500 hover:text-gray-700">取消</button>
-          </div>
-        ) : (
-          <button onClick={() => setEditing(true)}
-            className="inline-flex items-center gap-1 text-xs border border-gray-200 text-gray-600 px-2 py-1 rounded hover:bg-gray-100">
-            <Pencil size={12} /> 编辑
-          </button>
-        )}
+          )}
+        </div>
       </div>
       <p className="text-xs text-gray-400 mb-3">{desc}</p>
       {editing ? (
