@@ -460,6 +460,15 @@ adminCmd
   .option('--json', 'JSON 格式输出')
   .action(async (options) => {
     await require('../commands/admin/stats').execute(options);
+
+adminCmd
+  .command('keyword:stats')
+  .description('查看关键词效果统计')
+  .option('--json', 'JSON 格式输出')
+  .action(async (options) => {
+    await require('../commands/admin/keyword').execute(options);
+  });
+
   });
 
 // 完整流程

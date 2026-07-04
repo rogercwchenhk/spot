@@ -254,6 +254,35 @@ router.get('/stats', async (req, res) => {
   }
 });
 
+
+// GET /api/admin/keyword-stats - 关键词效果统计
+router.get('/keyword-stats', async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('v_keyword_effectiveness')
+      .select('*');
+    if (error) throw error;
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/admin/keyword-trend - 关键词周趋势
+router.get('/keyword-trend', async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('v_keyword_weekly_trend')
+      .select('*')
+      .order('week_start', { ascending: false })
+      .limit(100);
+    if (error) throw error;
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // GET /api/admin/users - 列出用户（简化版）
 router.get('/users', async (req, res) => {
   try {
