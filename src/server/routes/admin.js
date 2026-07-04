@@ -285,6 +285,46 @@ router.get('/keyword-trend', async (req, res) => {
 
 
 
+
+// GET /api/admin/keyword-strategy - 获取完整的关键词策略信息
+router.get('/keyword-strategy', async (req, res) => {
+  try {
+    const config = require('../config');
+    const { getKeywordStats } = require('../services/keyword-report');
+    const { calculatePageAdjustments } = require('../services/keyword-tuner');
+
+    // 获取当前关键词分组配置
+    const keywordGroups = config.keywordGroups || [];
+    const excludeKeywords = config.excludeKeywords || [];
+
+    // 获取统计数据
+    const stats = await getKeywordStats();
+
+    // 获取调优后的 maxPages
+    const tunedMaxPages = await supabaseAdmin
+      .from('system_config')
+      .select('value, updated_at')
+      .eq('key', 'fetch.tuned_max_pages')
+      .single();
+
+    // 获取调优建议
+    const adjustments = await calculatePageAdjustments();
+
+    res.json({
+      success: true,
+      data: {
+        keyword_groups: keywordGroups,
+        exclude_keywords: excludeKeywords,
+        stats: stats,
+        tuned_max_pages: tunedMaxPages?.data?.value || null,
+        tuned_at: tunedMaxPages?.data?.updated_at || null,
+        adjustments: adjustments,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 // GET /api/admin/keyword-tuner - 获取调优建议
 router.get('/keyword-tuner', async (req, res) => {
   try {

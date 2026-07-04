@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { radarApi } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
-import { Save, RefreshCw, Pencil, X, Plus, Trash2 } from 'lucide-react';
+import { Save, RefreshCw, Pencil, X, Plus, Trash2, Target, Tag, TrendingUp, Settings2 } from 'lucide-react';
 
 // ── cron ↔ 时间列表互转 ──────────────────────────────────
 
@@ -75,6 +75,165 @@ function parseValue(raw) {
     try { return JSON.parse(trimmed); } catch { return trimmed; }
   }
   return trimmed;
+}
+
+
+// ── 关键词策略展示组件 ────────────────────────────
+function KeywordStrategySection() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    radarApi.get('/admin/keyword-strategy')
+      .then(res => setData(res.data))
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="text-center text-gray-500 py-4">加载中...</div>;
+  if (error) return <div className="text-red-500 text-sm py-4">加载失败: {error}</div>;
+  if (!data) return null;
+
+  const { keyword_groups, exclude_keywords, stats, tuned_max_pages, adjustments } = data;
+
+  // 计算总览数据
+  let totalNotices = 0, totalStrong = 0, totalYes = 0, totalMatched = 0;
+  for (const s of stats || []) {
+    totalNotices += s.total_notices || 0;
+    totalStrong += s.strong_count || 0;
+    totalYes += s.yes_count || 0;
+    totalMatched += s.matched_count || 0;
+  }
+  const overallRate = totalMatched > 0 ? Math.round((totalStrong + totalYes) / totalMatched * 100) : 0;
+
+  // 构建统计 map
+  const statsMap = {};
+  for (const s of stats || []) {
+    statsMap[s.keyword_source] = s;
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* 总览卡片 */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="bg-gray-50 rounded-lg p-3 text-center">
+          <div className="text-2xl font-bold text-gray-900">{totalNotices}</div>
+          <div className="text-xs text-gray-500">总入库</div>
+        </div>
+        <div className="bg-green-50 rounded-lg p-3 text-center">
+          <div className="text-2xl font-bold text-green-700">{totalStrong}</div>
+          <div className="text-xs text-green-600">强推</div>
+        </div>
+        <div className="bg-yellow-50 rounded-lg p-3 text-center">
+          <div className="text-2xl font-bold text-yellow-700">{totalYes}</div>
+          <div className="text-xs text-yellow-600">可投</div>
+        </div>
+        <div className="bg-blue-50 rounded-lg p-3 text-center">
+          <div className="text-2xl font-bold text-blue-700">{overallRate}%</div>
+          <div className="text-xs text-blue-600">总有效率</div>
+        </div>
+      </div>
+
+      {/* 关键词分组 */}
+      <div className="space-y-2">
+        <h4 className="text-xs font-semibold text-gray-700 flex items-center gap-1">
+          <Target size={14} /> 关键词分组 ({keyword_groups.length} 组)
+        </h4>
+        {keyword_groups.map((group, i) => {
+          const st = statsMap[group.name] || {};
+          const tunedPages = tuned_max_pages?.[group.name];
+          const adj = adjustments?.find(a => a.name === group.name);
+          const effectiveRate = st.effective_rate !== null && st.effective_rate !== undefined
+            ? st.effective_rate : null;
+
+          return (
+            <div key={i} className="border border-gray-200 rounded-lg p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-sm text-gray-900">{group.name}</span>
+                  <span className="text-xs text-gray-400">{group.groups?.length || 0} 个组合</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {effectiveRate !== null && (
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      effectiveRate >= 30 ? 'bg-green-100 text-green-700' :
+                      effectiveRate >= 15 ? 'bg-yellow-100 text-yellow-700' :
+                      effectiveRate >= 5 ? 'bg-orange-100 text-orange-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>
+                      有效率 {effectiveRate}%
+                    </span>
+                  )}
+                  {tunedPages !== undefined && tunedPages !== null && (
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                      maxPages: {tunedPages}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* 统计行 */}
+              {st.total_notices > 0 && (
+                <div className="flex gap-3 text-xs text-gray-500 mb-2">
+                  <span>入库 {st.total_notices}</span>
+                  <span className="text-green-600">strong {st.strong_count || 0}</span>
+                  <span className="text-yellow-600">yes {st.yes_count || 0}</span>
+                  <span className="text-orange-500">risky {st.risky_count || 0}</span>
+                  <span className="text-red-500">no {st.no_count || 0}</span>
+                </div>
+              )}
+
+              {/* 调优建议 */}
+              {adj?.reason && (
+                <div className="text-xs text-blue-600 mb-2">💡 {adj.reason}</div>
+              )}
+
+              {/* 关键词列表 */}
+              <div className="flex flex-wrap gap-1">
+                {group.groups?.map((g, j) => (
+                  <span key={j} className="inline-flex items-center bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded">
+                    {g.keywords?.join(' + ')}
+                    <span className="ml-1 text-gray-400">[{g.match_modes?.join(',')}]</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 排除词 */}
+      <div>
+        <h4 className="text-xs font-semibold text-gray-700 flex items-center gap-1 mb-2">
+          <Tag size={14} /> 排除词 ({exclude_keywords.length} 个)
+        </h4>
+        <div className="flex flex-wrap gap-1">
+          {exclude_keywords.map((word, i) => (
+            <span key={i} className="inline-flex items-center bg-red-50 text-red-600 text-xs px-2 py-0.5 rounded border border-red-200">
+              {word}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* 演进历史提示 */}
+      <div className="bg-gray-50 rounded-lg p-3">
+        <h4 className="text-xs font-semibold text-gray-700 flex items-center gap-1 mb-1">
+          <TrendingUp size={14} /> 演进历史
+        </h4>
+        <p className="text-xs text-gray-500">
+          关键词策略 v2 (2026-07-04): 从 8 组基础关键词升级为 6 大分组 39 个组合，使用高级查询 + match_modes 精准匹配。
+          自进化系统已启用：每周一自动推送效果报告，可执行 cr admin keyword:tune 查看调优建议。
+        </p>
+        {data.tuned_at && (
+          <p className="text-xs text-blue-500 mt-1">
+            上次调优: {new Date(data.tuned_at).toLocaleString('zh-CN')}
+          </p>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function Settings() {
@@ -336,6 +495,15 @@ export default function Settings() {
             times: pushTimes, setTimes: setPushTimes,
             editing: pushEditing, setEditing: setPushEditing, onSave: savePushSchedule,
           })}
+
+          {/* 关键词策略 */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Settings2 size={16} className="text-gray-700" />
+              <h3 className="text-sm font-semibold text-gray-900">关键词策略</h3>
+            </div>
+            <KeywordStrategySection />
+          </div>
 
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <h3 className="text-sm font-semibold text-gray-900 mb-3">系统信息</h3>
