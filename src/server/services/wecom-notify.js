@@ -185,10 +185,74 @@ async function pushNewMatches(limit = 20) {
 }
 
 /**
+ * 推送日报：汇总当天新标讯 + 匹配结果
+ */
+async function pushDailyReport() {
+  const today = new Date().toISOString().slice(0, 10);
+
+  // 查询当天发布的标讯及其匹配结果
+  const { data: notices, error } = await supabaseAdmin
+    .from('bidding_notice')
+    .select('*, match_result(*)')
+    .gte('publish_date', today)
+    .order('publish_date', { ascending: false });
+
+  if (error) throw error;
+  if (!notices || notices.length === 0) {
+    console.log('[wecom] 今日无新标讯，跳过推送');
+    return { pushed: 0, reason: 'no_data' };
+  }
+
+  // 按匹配等级分组
+  const groups = { strong: [], yes: [], risky: [], no: [], unmatched: [] };
+  for (const n of notices) {
+    const mr = Array.isArray(n.match_result) ? n.match_result[0] : n.match_result;
+    const level = mr ? mr.recommend_level : 'unmatched';
+    (groups[level] || groups.unmatched).push({ notice: n, match: mr });
+  }
+
+  const levelConfig = {
+    strong: { emoji: '🟢', label: '强推' },
+    yes: { emoji: '🟡', label: '可以投' },
+    risky: { emoji: '🟠', label: '风险' },
+    no: { emoji: '🔴', label: '不建议' },
+    unmatched: { emoji: '⚪', label: '待匹配' },
+  };
+
+  // 构建日报内容
+  const dateStr = new Date().toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' });
+  const timeStr = new Date().toLocaleTimeString('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit' });
+  let md = `## 📊 客户雷达日报 (${dateStr} ${timeStr})\n`;
+  md += `> 共 **${notices.length}** 条新标讯\n\n`;
+
+  for (const level of ['strong', 'yes', 'risky', 'no', 'unmatched']) {
+    const items = groups[level];
+    if (items.length === 0) continue;
+    const cfg = levelConfig[level];
+    md += `### ${cfg.emoji} ${cfg.label} (${items.length}条)\n`;
+
+    const show = items.slice(0, 5); // 每类最多显示 5 条
+    for (const { notice: n, match: m } of show) {
+      const budget = n.budget_amount ? `¥${(n.budget_amount / 10000).toFixed(0)}万` : '-';
+      const deduction = m ? ` 扣${m.total_deduction}分` : '';
+      md += `> ${n.title?.substring(0, 35)}${n.title?.length > 35 ? '...' : ''} | ${budget} | ${n.city || '-'}${deduction}\n`;
+    }
+    if (items.length > 5) md += `> ...等 ${items.length - 5} 条\n`;
+    md += '\n';
+  }
+
+  const result = await sendMarkdown(md);
+  if (result.success) {
+    console.log(`[wecom] 日报推送成功: ${notices.length} 条标讯`);
+  }
+  return { pushed: notices.length, success: result.success };
+}
+
+/**
  * 测试推送
  */
 async function testPush() {
   return await sendMarkdown('## 🔔 客户雷达推送测试\n\n企微推送功能已配置成功！');
 }
 
-module.exports = { pushNoticeNotification, pushNewMatches, testPush, sendMarkdown };
+module.exports = { pushNoticeNotification, pushNewMatches, pushDailyReport, testPush, sendMarkdown };

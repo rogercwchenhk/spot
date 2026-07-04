@@ -1,67 +1,67 @@
 /**
  * 定时调度服务
- * 串联：采集 → AI Pipeline → 匹配引擎 → 企微推送
+ * 采集(12:00/23:00) 与 推送(9:00/14:00) 分离
  */
 const cron = require('node-cron');
 const { runFullIngestion } = require('./ingestion');
 const { processPendingNotices } = require('./ai-pipeline');
 const { calculatePendingMatches } = require('./match-engine');
-const { pushNewMatches } = require('./wecom-notify');
+const { pushDailyReport } = require('./wecom-notify');
 
-const CRON_SCHEDULE = '0 12,23 * * *'; // 每天 12:00 和 23:00
+const CRON_FETCH = '0 12,23 * * *';  // 采集: 每天 12:00 和 23:00
+const CRON_PUSH  = '0 9,14 * * *';   // 推送: 每天 9:00 和 14:00
 
 /**
- * 完整处理流程
+ * 采集 + AI + 匹配（不推送）
  */
 async function runFullPipeline() {
-  console.log('=== 开始完整处理流程 ===');
+  console.log('=== 开始采集处理流程 ===');
   const startTime = Date.now();
 
   try {
-    // 1. 采集标讯
-    console.log('\n[1/4] 采集标讯...');
+    console.log('\n[1/3] 采集标讯...');
     const ingestionResult = await runFullIngestion();
-    console.log(`[1/4] 采集完成: 新增 ${ingestionResult} 条`);
+    console.log(`[1/3] 采集完成: 新增 ${ingestionResult} 条`);
 
-    // 2. AI Pipeline 处理
-    console.log('\n[2/4] AI Pipeline 处理...');
+    console.log('\n[2/3] AI Pipeline 处理...');
     const aiResult = await processPendingNotices(20);
-    console.log(`[2/4] AI 处理完成: ${aiResult.processed} 成功, ${aiResult.failed} 失败`);
+    console.log(`[2/3] AI 处理完成: ${aiResult.processed} 成功, ${aiResult.failed} 失败`);
 
-    // 3. 匹配引擎计算
-    console.log('\n[3/4] 匹配引擎计算...');
+    console.log('\n[3/3] 匹配引擎计算...');
     const matchResult = await calculatePendingMatches(50);
-    console.log(`[3/4] 匹配完成: ${matchResult.calculated} 成功, ${matchResult.failed} 失败`);
-
-    // 4. 企微推送
-    console.log('\n[4/4] 企微推送...');
-    const pushResult = await pushNewMatches(20);
-    console.log(`[4/4] 推送完成: ${pushResult.pushed} 推送, ${pushResult.skipped} 跳过`);
+    console.log(`[3/3] 匹配完成: ${matchResult.calculated} 成功, ${matchResult.failed} 失败`);
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`\n=== 完整流程完成, 耗时 ${elapsed}s ===`);
+    console.log(`\n=== 采集处理完成, 耗时 ${elapsed}s ===`);
 
-    return {
-      ingestion: ingestionResult,
-      ai: aiResult,
-      match: matchResult,
-      push: pushResult,
-    };
+    return { ingestion: ingestionResult, ai: aiResult, match: matchResult };
   } catch (err) {
-    console.error('=== 流程执行失败 ===', err.message);
+    console.error('=== 采集处理失败 ===', err.message);
     throw err;
   }
 }
 
 function startScheduler() {
-  console.log(`[scheduler] 定时任务已启动: ${CRON_SCHEDULE}`);
+  console.log(`[scheduler] 采集任务: ${CRON_FETCH}`);
+  console.log(`[scheduler] 推送任务: ${CRON_PUSH}`);
 
-  cron.schedule(CRON_SCHEDULE, async () => {
-    console.log(`\n[scheduler] 开始定时处理 ${new Date().toISOString()}`);
+  // 采集 + AI + 匹配（不推送）
+  cron.schedule(CRON_FETCH, async () => {
+    console.log(`\n[scheduler] 开始采集 ${new Date().toISOString()}`);
     try {
       await runFullPipeline();
     } catch (err) {
-      console.error('[scheduler] 处理失败:', err.message);
+      console.error('[scheduler] 采集失败:', err.message);
+    }
+  });
+
+  // 上班时间推送日报
+  cron.schedule(CRON_PUSH, async () => {
+    console.log(`\n[scheduler] 开始推送日报 ${new Date().toISOString()}`);
+    try {
+      await pushDailyReport();
+    } catch (err) {
+      console.error('[scheduler] 推送失败:', err.message);
     }
   });
 }
