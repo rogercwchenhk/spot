@@ -186,7 +186,6 @@ export default function Settings() {
             </button>
           </div>
         )}
-        <div className="text-xs text-gray-400 mt-0.5">{key}</div>
       </div>
     );
   };
