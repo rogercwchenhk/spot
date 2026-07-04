@@ -7,18 +7,23 @@ import { supabase } from './supabase.js';
 
 function createApiClient({ baseURL, getToken }) {
   async function request(method, path, { body, params, headers: extraHeaders } = {}) {
-    const url = new URL(`${baseURL}${path}`);
+    // 拼接 baseURL + path
+    let url = `${baseURL}${path}`;
+
+    // 追加 query params
     if (params) {
-      Object.entries(params).forEach(([k, v]) => {
-        if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, v);
-      });
+      const qs = Object.entries(params)
+        .filter(([, v]) => v !== undefined && v !== null && v !== '')
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+        .join('&');
+      if (qs) url += `?${qs}`;
     }
 
     const headers = { 'Content-Type': 'application/json', ...extraHeaders };
     const token = getToken ? await getToken() : null;
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    const res = await fetch(url.toString(), {
+    const res = await fetch(url, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
