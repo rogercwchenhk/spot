@@ -179,55 +179,52 @@ ALTER TABLE bidding_notice
 
 ## 4. AI Pipeline 设计
 
-### 4.1 mimo-v2.5-pro 结构化提取
+### 4.1 数据源约束
 
-对每条公告的 `cleaned_content` 调用 mimo-v2.5-pro，输出 JSON：
+**知了 API 只返回元数据，不含招标文件正文。** 标讯的 `notice_content` 始终为空。
 
-```json
-{
-  "project_name": "XX单位信息系统运维服务采购项目",
-  "budget": 1500000,
-  "deadline": "2026-07-25T17:00:00",
-  "region": "广州市",
-  "industry_type": "IT信息化",
-  "project_type": "驻场运维",
-  "tech_keywords": ["小型机", "存储", "数据库", "Oracle"],
-  "qualification_requirements": [
-    {"item": "ISO9001质量管理体系认证", "mandatory": true},
-    {"item": "至少3名持有OCP证书的工程师", "mandatory": true},
-    {"item": "近3年同类项目经验", "mandatory": false}
-  ],
-  "commercial_scoring_rules": [
-    {"item": "ISO认证", "max_score": 3, "deduction_if_missing": 3},
-    {"item": "项目经理PMP证书", "max_score": 2, "deduction_if_missing": 2}
-  ],
-  "tenderee": "广州市XX局",
-  "tender_agent": "XX招标代理有限公司",
-  "competitors_mentioned": []
-}
+招标文件（含资质要求、评分标准）在原发布网站，获取方式各异：
+- 免费下载 → 优先获取（第二阶段）
+- 收费购买 → 跳过并标记 `doc_access_type = 'paid'`
+- 需要报名 → 标记 `doc_access_type = 'registration_required'`，人工跟进
+
+**约束：收费招标文件一律跳过，不付费获取。**
+
+### 4.2 AI Pipeline v2（元数据提取）
+
+因为没有招标文件正文，AI Pipeline 改为基于标题+元数据做分类提取：
+
+**规则引擎**（快速免费，覆盖约 70% 标讯）：
+- 技术关键词：14 种正则模式（小型机/存储/数据库/服务器/网络/虚拟化/桌面/安全/云/机房/ERP/监控/备份/容器）
+- 行业分类：8 种模式（金融/医疗/电力能源/交通/教育/政府/通信/制造业）
+- 项目类型：7 种模式（运维/驻场运维/桌面运维/系统集成/咨询/安全服务/培训）
+
+**AI 补充**（仅在规则引擎无法确定时调用 mimo）：
+- 输入：标题 + sm_names + caller_name + 地区 + 预算
+- 输出：industry_type + project_type + tech_keywords + confidence
+
+**不提取**：资质要求、评分标准、摘要（因为没有正文内容）
+
+### 4.3 匹配引擎 v2（能力匹配）
+
+因为没有招标文件的资质要求，改为评估公司已有能力与标讯需求的契合度：
+
+```
+五维评分（满分 100）：
+1. 技术关键词匹配 (30分) — 公司资质+合同关键词 vs 标讯 tech_keywords
+2. 行业经验匹配   (25分) — 公司合同 industry vs 标讯 industry_type
+3. 项目类型匹配   (20分) — 公司合同 service_type vs 标讯 project_type
+4. 地区匹配       (15分) — 公司合同 region vs 标讯 region（广东省内互通）
+5. 同类业绩匹配   (10分) — 近 3 年同类合同（服务类型+行业+技术关键词）
+
+推荐等级：
+  >= 80: strong (强推)
+  >= 60: yes    (可以投)
+  >= 40: risky  (风险)
+  <  40: no     (不建议)
 ```
 
-### 4.2 匹配引擎（规则引擎）
-
-```
-输入：notice 的 qualification_requirements + commercial_scoring_rules
-     + company_qualification 全量
-     + personnel_qualification 全量
-
-逻辑：
-1. 遍历每条资格要求
-2. 在公司资质库中查找匹配（模糊匹配：qual_name 包含关键词）
-3. 在人员资质库中查找匹配（按 qual_type + is_active + expiry_date 未过期）
-4. 客观分：逐项计算扣分
-5. 主观分：按满分的 90% 估算
-6. 累加总扣分
-
-输出：
-- total_deduction <= 0: recommend_level = 'strong'
-- total_deduction <= 2: recommend_level = 'yes'
-- total_deduction <= 5: recommend_level = 'risky'
-- total_deduction > 5:  recommend_level = 'no'
-```
+**当前数据**：226 条标讯 → 7 strong / 54 yes / 122 risky / 43 no
 
 ---
 
@@ -323,12 +320,12 @@ async function notifyWeChat(notice, matchResult) {
 - [ ] Supabase 建表迁移（bidding_notice 补充字段 + 资质表 + 匹配结果表）
 - [ ] 知了标讯 API 对接：Node.js 定时任务，每 2 小时拉取广东省 IT 运维类公告
 - [ ] 数据清洗入库：去重、字段映射、`ai_status = 0`
-- [ ] mimo-v2.5-pro AI Pipeline：清洗 → 摘要 → 结构化打标
-- [ ] 公司资质 + 人员资质数据录入（从现有文档提取或人工录入）
-- [ ] 匹配引擎实现：资格比对 + 扣分计算 + 推荐等级
-- [ ] 企微群机器人 webhook 推送
+- [x] AI Pipeline v2：元数据规则提取 + mimo AI 补充分类（已完成 226 条）
+- [x] 公司资质 + 人员资质数据录入（已录入 7 公司资质 + 11 人员资质）
+- [x] 匹配引擎 v2：五维能力匹配（已完成 226 条：7 strong / 54 yes / 122 risky / 43 no）
+- [x] 企微群机器人 webhook 推送服务
 
-**交付物：** 企微群每天收到匹配的标讯推送
+**交付物：** 后端全链路跑通（采集 → AI 提取 → 匹配 → 推送），CLI 可查询
 
 ### Phase 2: PWA 前端 + CLI（Week 2-3）
 

@@ -1,7 +1,7 @@
 # 客户雷达 — 技术设计文档
 
 > 版本: v2.0 | 日期: 2026-07-03 | 基于 PRD v2.0 修正
-
+> 版本: v3.0 | 日期: 2026-07-04 | 基于 Phase B 实际验证修正
 ---
 
 ## 1. 项目定位
@@ -10,7 +10,25 @@
 
 - **业务驱动**：运维/驻场是现金牛，系统围绕这个核心来建
 - **AI 原生**：数据库从第一行 DDL 开始就为 LLM 优化，让 AI Pipeline 以最低 Token 成本处理数据
-- **匹配为核心**：不只是"看标讯"，而是"算能不能投、扣几分"
+- **匹配为核心**：不只是“看标讯”，而是基于公司能力评估与标讯需求的契合度
+
+### 数据源约束（重要）
+
+**知了标讯 API 只返回元数据，不含招标文件正文。** 实际返回字段：title、bid_type、money_wan、province、city、caller_name、agency_name、sm_names、signup_time、tender_time、url、exists_bid_file 等。`notice_content` 在入库时为空。
+
+**招标文件（含资质要求、评分标准）在原发布网站。** 标讯中的 url 指向知了标讯的中转页面，原发布网站链接在该页面内。获取招标文件的方式因平台而异：
+
+| 获取方式 | 说明 | 处理策略 |
+|---|---|---|
+| 免费下载 | 部分政府平台直接提供 PDF/Word | 优先获取，提取资质要求 |
+| 需要报名 | 需注册并报名后才能下载 | 标记为 `registration_required`，人工跟进 |
+| 收费购买 | 招标文件需付费获取 | 标记为 `paid`，跳过 |
+| 无法获取 | 链接失效或需特殊权限 | 标记为 `unknown` |
+
+**这意味着：**
+1. AI Pipeline 无法从标讯中提取资质要求和评分标准（因为没有招标文件正文）
+2. 匹配引擎无法做“逐项扣分”式的精确匹配（不知道具体要求是什么）
+3. 当前匹配改为“能力契合度评估”：基于公司已有能力与标讯特征的重叠度打分
 
 ---
 
@@ -71,31 +89,36 @@ erDiagram
 
 ### 3.3 bidding_notice — 核心数据表
 
-AI 数据分层存储，逐级降本：
+**知了 API 只返回元数据，不含标讯正文。** 字段清单：
 
-| 字段 | 角色 | Token 成本 |
+| 字段 | 内容 | 来源 |
 |---|---|---|
-| `notice_content` | 原始 HTML 存档 | 最高（万字级） |
-| `cleaned_content` | 纯文本，去噪后 | 中等 |
-| `notice_summary` | 200 字摘要 | 极低 |
-| `notice_tag`（关联表） | 结构化标签 | 零（不走 LLM） |
+| `title` | 标题 | 知了 API |
+| `notice_type` | tender/result/change/candidate | 知了 API bid_type 映射 |
+| `budget_amount` | 预算（万元） | 知了 API money_wan |
+| `region_scope` / `city` | 省份/城市 | 知了 API |
+| `tenderee` | 采购单位 | 知了 API caller_name |
+| `tender_agent` | 代理机构 | 知了 API agency_name |
+| `source_url` | 知了中转页链接 | 知了 API url |
+| `signup_time` | 报名截止 | 知了 API |
+| `notice_content` | **始终为空** | 知了 API 不返回正文 |
+| `cleaned_content` | **始终为空** | 同上 |
+| `ai_extracted_fields` | AI 结构化提取结果 (JSONB) | AI Pipeline v2 写入 |
+| `ai_status` | 处理状态 | AI Pipeline 写入 |
+| `industry_type` | 行业分类 | AI Pipeline 写入 |
+| `data_source` | 数据来源（`zhiliao_api`） | 入库时写入 |
 
-补充字段：
-- `data_source` — 数据来源标识（`zhiliao_api` / `self_crawler`）
+**关键约束**：因为 `notice_content` 始终为空，AI Pipeline 不能做内容级提取（如摘要、资质要求、评分规则）。
 
 ### 3.4 AI 状态机 (`ai_status`)
 
 ```
-  0 (待处理)
-  │
-  ├→ 1 (已清洗) → 2 (已摘要) → 3 (已打标) → 4 (全部完成)
-  │
-  ├→ -1 (AI 判定为噪声)
-  │
-  └→ -2 (处理失败，错误记录在 ai_error)
+  0 (待处理)  →  4 (元数据提取完成)
+       │
+       └→ -2 (处理失败，错误记录在 ai_error)
 ```
 
-支持断点续跑：清洗成功但摘要失败时，不需要从头再来。
+**v1→v2 变更**：原状态机有 0→1→2→3→4 四步（清洗→摘要→打标→完成），因为 `notice_content` 始终为空，清洗和摘要无意义。v2 简化为 0→4 一步完成。状态 1/2/3 不再使用。
 
 ### 3.5 company_qualification — 公司资质表
 
@@ -173,20 +196,16 @@ IT基础设施服务常用资质标准术语库，包含人员认证（10 大类
 
 | 表 | 字段 | 用途 |
 |---|---|---|
-| bidding_notice | ai_status | AI 处理状态机 (0→1→2→3→4/-1/-2) |
-| bidding_notice | cleaned_content | 分层存储：原始HTML→清洗文本 |
-| bidding_notice | notice_summary | AI 生成的精炼摘要 |
-| bidding_notice | ai_extracted_fields | AI 结构化提取完整结果 (JSONB) |
-| notice_tag | confidence | AI 提取置信度 (0.00-1.00) |
-| company_qualification | qual_ref_id | 关联资质参考库，标准化匹配 |
-| company_qualification | match_keywords | AI 匹配关键词数组 |
-| personnel_qualification | qual_ref_id | 关联资质参考库，标准化匹配 |
-| personnel_qualification | match_keywords | AI 匹配关键词数组 |
-| match_result | match_details | 结构化匹配详情 (JSONB) |
-| match_result | ai_score_details | AI 辅助评分详情 (JSONB) |
-| qualification_reference | match_keywords | AI 匹配关键词数组 |
-| qualification_reference | common_aliases | 常见别名数组 |
-| qualification_reference | search_vector | 全文搜索向量 (GIN索引) |
+| bidding_notice | ai_status | AI 处理状态 (0=待处理, 4=完成, -2=失败) |
+| bidding_notice | ai_extracted_fields | AI 提取结果 JSONB (来源标记 source=metadata_rules/metadata_rules+ai) |
+| bidding_notice | industry_type | 行业分类 (AI Pipeline 写入) |
+| notice_tag | tag_type + tag_value | 标签 (tech_keyword/industry/project_type) |
+| notice_tag | confidence | 提取置信度 (0.00-1.00) |
+| match_result | match_details | 五维匹配详情 JSONB (维度/得分/满分) |
+| match_result | risk_notes | 风险提示 TEXT[] |
+| match_result | total_deduction | 距满分差值 (100 - 实际得分) |
+| company_contract | tech_keywords | 合同技术关键词，匹配引擎直接使用 |
+| company_contract | industry | 合同行业，匹配引擎直接使用 |
 
 ### 3.9 match_result — 匹配结果表
 
@@ -205,78 +224,85 @@ CREATE TABLE match_result (
 );
 ```
 
+**v2 变更说明**：
+- `total_deduction` 语义变更：v1 表示“资质缺失扣分总和”，v2 表示“100 - 能力匹配得分”（兼容旧字段名）
+- `match_details` 结构变更：v1 为 `{requirement, matched, deduction}`，v2 为 `{dimension, score, max_score, matched, ...}`
+- `unmatched_items`：v2 中不再使用（匹配结果全部在 match_details 中）
+
 ---
 
 ## 4. AI Pipeline 流程
 
 ```mermaid
 flowchart LR
-    A[知了API采集] --> B[清洗去噪]
-    B -->|写入 cleaned_content| C{ai_status = 0?}
-    C -->|是| D[mimo 提取摘要]
-    D -->|写入 notice_summary| E[mimo 结构化打标]
-    E -->|写入 notice_tag| F[匹配引擎]
-    F -->|写入 match_result| G[企微推送]
-    D -->|异常| H[ai_status = -2]
-    B -->|垃圾内容| I[ai_status = -1]
+    A[知了API采集] --> B[入库 ai_status=0]
+    B --> C[规则引擎提取]
+    C --> D{行业/类型明确?}
+    D -->|否| E[mimo AI 补充分类]
+    D -->|是| F[写入 ai_extracted_fields]
+    E --> F
+    F --> G[ai_status=4]
+    G --> H[能力匹配引擎]
+    H --> I[写入 match_result]
+    I --> J[企微推送]
 ```
 
 ### 4.1 各阶段详情
 
 **阶段 1：采集与入库**
-- 知了标讯 API 按关键词拉取广东省公告
+- 知了标讯 API 按关键词拉取公告（默认广东省）
 - 字段映射 + 去重（source_unique_id）
-- 写入 bidding_notice，`ai_status = 0`
+- 写入 bidding_notice，`ai_status = 0`，`notice_content = ''`
 
-**阶段 2：清洗**
-- 去除 HTML 标签、导航栏、页脚
-- 写入 `cleaned_content`，`ai_status → 1`
+**阶段 2：元数据提取（规则引擎 + AI 补充）**
 
-**阶段 3：摘要生成**
-- 读取 `cleaned_content`（不读原始 HTML，省 90% Token）
-- mimo-v2.5-pro 返回 200 字商机摘要
-- 写入 `notice_summary`，`ai_status → 2`
+规则引擎从标题+sm_names 提取（无需 AI，快速免费）：
+- 技术关键词：14 种模式（小型机/存储/数据库/服务器/网络/虚拟化/桌面/安全/云/机房/ERP/监控/备份/容器）
+- 行业分类：8 种模式（金融/医疗/电力能源/交通/教育/政府/通信/制造业）
+- 项目类型：7 种模式（运维/驻场运维/桌面运维/系统集成/咨询/安全服务/培训）
 
-**阶段 4：结构化打标**
-- mimo-v2.5-pro JSON Mode 提取：
-  - 项目类型（维保/驻场/桌面运维/算力等）
-  - 预算金额
-  - 资质要求（逐项列出，标注是否必须）
-  - 商务评分规则（逐项列出分值和扣分条件）
-  - 技术关键词（IBM小型机、Oracle、存储等）
-  - 行业（银行/医院/交通/政府等）
-  - 潜在竞争对手
-- 写入 `notice_tag`，`ai_status → 3`
+仅当规则引擎无法确定行业或项目类型时，调用 mimo AI 补充分类。
 
-**阶段 5：匹配引擎（规则引擎，非 LLM）**
+**不提取的字段**（因为没有招标文件正文）：
+- ~~资质要求 (qualification_requirements)~~
+- ~~评分标准 (commercial_scoring_rules)~~
+- ~~摘要 (notice_summary)~~
 
+写入 `ai_extracted_fields`，`ai_status → 4`。
+
+**阶段 3：能力匹配引擎（五维评分，满分 100）**
+
+因为没有招标文件的资质要求，无法做“逐项扣分”式匹配。改为评估公司已有能力与标讯需求的契合度：
+
+| 维度 | 满分 | 匹配逻辑 |
+|---|---|---|
+| 技术关键词 | 30 | 标讯 tech_keywords 与公司资质 scope/名称 + 合同 tech_keywords 的重叠比例 |
+| 行业经验 | 25 | 标讯 industry_type 是否在公司合同的 industry 中出现 |
+| 项目类型 | 20 | 标讯 project_type 是否在公司合同的 service_type 中出现 |
+| 地区匹配 | 15 | 标讯 region 是否在公司合同的 region 中出现（广东省内各市互通） |
+| 同类业绩 | 10 | 是否有近 3 年同类合同（服务类型+行业+技术关键词至少匹配 2 项） |
+
+推荐等级：
 ```
-输入：notice 的 qualification_requirements + commercial_scoring_rules
-     + company_qualification 全量
-     + personnel_qualification 全量
-
-逻辑：
-1. 遍历每条资格要求
-2. 在公司资质库中查找匹配（模糊匹配：qual_name 包含关键词）
-3. 在人员资质库中查找匹配（按 qual_type + is_active + expiry_date）
-4. 客观分：逐项计算扣分
-5. 主观分：按满分的 90% 估算
-6. 累加总扣分
-
-输出：
-- total_deduction <= 0: recommend_level = 'strong'（强推）
-- total_deduction <= 2: recommend_level = 'yes'（可以投）
-- total_deduction <= 5: recommend_level = 'risky'（风险）
-- total_deduction > 5:  recommend_level = 'no'（不建议）
+总分 >= 80: 'strong'（强推）
+总分 >= 60: 'yes'   （可以投）
+总分 >= 40: 'risky' （风险）
+总分 <  40: 'no'    （不建议）
 ```
 
-### 4.2 平台级 Prompt 定制（第二阶段）
+**当前数据验证**（226 条标讯）：7 strong / 54 yes / 122 risky / 43 no
 
-不同平台行文风格差异大，提取 Prompt 存在 `platform_source.extraction_prompt`，Pipeline 处理时动态拼接：
+### 4.2 招标文件获取（第二阶段）
 
-```
-system_prompt + platform.extraction_prompt + cleaned_content
-```
+当前阶段匹配基于元数据做能力契合度评估。如需精确的“逐项扣分”匹配，需要获取招标文件正文：
+
+1. 从 `source_url`（知了中转页）找到原发布网站链接
+2. 检查获取方式：免费下载 / 需报名 / 收费购买
+3. 免费文件：下载 PDF/Word，AI 提取资质要求和评分标准
+4. 收费文件：标记 `doc_access_type = 'paid'`，跳过
+5. 需报名：标记 `doc_access_type = 'registration_required'`，人工跟进
+
+**约束**：收费招标文件一律跳过并标记，不付费获取。
 
 ---
 
