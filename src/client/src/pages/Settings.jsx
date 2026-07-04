@@ -243,32 +243,18 @@ export default function Settings() {
     <div className="bg-white rounded-xl border border-gray-200 p-5">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
-        <div className="flex gap-2">
-          <button onClick={() => { if (!editing) setEditing(true); }}
-            disabled={editing}
-            className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded ${
-              editing ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'border border-gray-200 text-gray-600 hover:bg-gray-100'
-            }`}>
+        {!editing && (
+          <button onClick={() => setEditing(true)}
+            className="inline-flex items-center gap-1 text-xs border border-gray-200 text-gray-600 px-2 py-1 rounded hover:bg-gray-100">
             <Pencil size={12} /> 编辑
           </button>
-          <button onClick={onSave} disabled={saving || !editing}
-            className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded ${
-              editing ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-            }`}>
-            <Save size={12} /> 保存
-          </button>
-          {editing && (
-            <button onClick={() => { setEditing(false); fetchConfig(); }}
-              className="inline-flex items-center text-xs text-gray-500 hover:text-gray-700 px-2 py-1">
-              <X size={14} /> 取消
-            </button>
-          )}
-        </div>
+        )}
       </div>
       <p className="text-xs text-gray-400 mb-3">{desc}</p>
+
       {editing ? (
-        <div className="space-y-3">
-          <div className="flex flex-wrap gap-2">
+        <>
+          <div className="flex flex-wrap gap-2 mb-3">
             {times.map((t, i) => (
               <div key={i} className="inline-flex items-center gap-1 bg-yellow-50 border border-yellow-300 rounded-lg px-2 py-1">
                 <input type="time" value={t}
@@ -279,12 +265,22 @@ export default function Settings() {
                   className="text-gray-400 hover:text-red-500"><Trash2 size={12} /></button>
               </div>
             ))}
+            <button onClick={() => setTimes([...times, '12:00'])}
+              className="inline-flex items-center gap-1 text-xs text-gray-600 border border-dashed border-gray-300 px-2 py-1 rounded hover:bg-gray-50">
+              <Plus size={12} /> 添加
+            </button>
           </div>
-          <button onClick={() => setTimes([...times, '12:00'])}
-            className="inline-flex items-center gap-1 text-xs text-gray-600 border border-dashed border-gray-300 px-2 py-1 rounded hover:bg-gray-50">
-            <Plus size={12} /> 添加时间
-          </button>
-        </div>
+          <div className="flex gap-2 pt-3 border-t border-gray-100">
+            <button onClick={onSave} disabled={saving}
+              className="inline-flex items-center gap-1 text-sm bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50">
+              <Save size={14} /> 保存
+            </button>
+            <button onClick={() => { setEditing(false); fetchConfig(); }}
+              className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 px-4 py-2">
+              <X size={14} /> 取消
+            </button>
+          </div>
+        </>
       ) : (
         <div className="flex flex-wrap gap-2">
           {times.map((t, i) => (
