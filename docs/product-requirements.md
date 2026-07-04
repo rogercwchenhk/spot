@@ -248,7 +248,7 @@
 
 ## 8. 数据库设计
 
-详见 [design.md](./design.md)。
+详见 [design.md](./system-design.md)。
 
 核心设计原则：
 
@@ -319,8 +319,8 @@
 
 ### B. Prompt 模板
 
-详见 [prompt-template.md](./prompt-template.md)。
+详见 [prompt-template.md](./ai-prompt-templates.md)。
 
 ### C. 技术设计
 
-详见 [design.md](./design.md)。
+详见 [design.md](./system-design.md)。

@@ -368,10 +368,10 @@ async function notifyWeChat(notice, matchResult) {
 ```
 customer radar/
 ├── docs/
-│   ├── prd.md
-│   ├── design.md
+│   ├── product-requirements.md
+│   ├── system-design.md
 │   ├── platform-registry.md
-│   ├── prompt-template.md
+│   ├── ai-prompt-templates.md
 │   └── implementation-plan.md    ← 本文件
 ├── supabase/
 │   └── migrations/

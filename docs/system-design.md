@@ -324,10 +324,10 @@ flowchart LR
 ```
 customer radar/
 ├── docs/
-│   ├── prd.md                    ← 需求文档
-│   ├── design.md                 ← 本文件
+│   ├── product-requirements.md                    ← 需求文档
+│   ├── system-design.md                ← 本文件
 │   ├── platform-registry.md      ← 平台清单
-│   ├── prompt-template.md        ← Prompt 模板
+│   ├── ai-prompt-templates.md        ← Prompt 模板
 │   └── implementation-plan.md    ← 实施计划
 ├── supabase/
 │   └── migrations/
