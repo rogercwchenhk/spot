@@ -1,7 +1,7 @@
 # 客户雷达 — 后端实施计划
 
 > 版本: v1.0 | 日期: 2026-07-03
-
+> 版本: v2.0 | 日期: 2026-07-04 | 基于 Phase A-E 实际实现更新
 ---
 
 ## 1. 开发顺序
@@ -99,73 +99,76 @@ Phase E: AI Agent 测试（Day 5）
 
 ## 3. Phase B: AI Pipeline + 匹配引擎
 
-### 3.1 AI Pipeline 服务
+### 3.0 数据源约束
+
+**知了 API 只返回元数据，不含招标文件正文。** `notice_content` 始终为空。
+招标文件（含资质要求、评分标准）在原发布网站，获取方式各异：
+- 免费下载 → 优先获取（第二阶段）
+- 收费购买 → 跳过，标记 `doc_access_type = 'paid'`
+- 需要报名 → 标记 `doc_access_type = 'registration_required'`，人工跟进
+
+**约束：收费招标文件一律跳过，不付费获取。**
+
+### 3.1 AI Pipeline 服务 (v2)
 
 **文件**: `src/server/services/ai-pipeline.js`
 
+因为 `notice_content` 始终为空，AI Pipeline 改为基于标题+元数据做分类提取。
+
 **处理流程**:
 ```
-输入: bidding_notice.id
+输入: bidding_notice (标题 + sm_names + caller_name + 地区 + 预算)
   ↓
-1. 读取 cleaned_content（如无则从 notice_content 清洗）
+1. 规则引擎提取（快速免费，覆盖约 70%）
+   - 技术关键词: 14 种正则模式
+   - 行业分类: 8 种模式
+   - 项目类型: 7 种模式
   ↓
-2. 调用 mimo-v2.5-pro 提取结构化字段
-   - project_name: 项目名称
-   - budget: 预算金额
-   - deadline: 截止日期
-   - region: 地区
-   - industry_type: 行业类型
-   - project_type: 项目类型（运维/驻场/集成等）
-   - tech_keywords: 技术关键词[]
-   - qualification_requirements: 资质要求[]
-   - commercial_scoring_rules: 商务评分规则[]
+2. 如规则无法确定行业/项目类型，调用 mimo AI 补充分类
   ↓
-3. 写入 bidding_notice.ai_extracted_fields
+3. 写入 ai_extracted_fields + industry_type
   ↓
-4. 展开写入 notice_tag（行级存储）
+4. 写入 notice_tag (tech_keyword / industry / project_type)
   ↓
-5. 更新 ai_status 状态机
+5. ai_status → 4
 ```
 
-**AI 状态机**:
+**不提取的字段**（因为没有招标文件正文）：
+- ~~资质要求 (qualification_requirements)~~
+- ~~评分标准 (commercial_scoring_rules)~~
+- ~~摘要 (notice_summary)~~
+
+**AI 状态机** (v2 简化):
 ```
-0 (待处理) → 1 (已清洗) → 2 (已摘要) → 3 (已打标) → 4 (全部完成)
-                                                          ↓
-失败 → -2 (处理失败，记录 ai_error)
-噪声 → -1 (AI 判定为噪声)
+0 (待处理)  →  4 (元数据提取完成)
+       └→ -2 (处理失败，记录 ai_error)
 ```
 
-### 3.2 匹配引擎
+### 3.2 匹配引擎 (v2)
 
 **文件**: `src/server/services/match-engine.js`
 
-**输入**: notice_id
-**输出**: match_result 记录
+因为没有招标文件的资质要求，改为评估公司已有能力与标讯需求的契合度。
 
-**匹配逻辑**:
-```
-1. 读取 notice.ai_extracted_fields.qualification_requirements
-2. 读取 company_qualification 全量
-3. 读取 personnel_qualification 全量
-4. 读取 company_contract 全量（同类业绩）
-5. 遍历每条资质要求：
-   - 在 qualification_reference 中查找标准术语
-   - 在 company_qualification 中匹配（match_keywords）
-   - 在 personnel_qualification 中匹配（match_keywords）
-   - 计算扣分
-6. 同类业绩匹配：
-   - 按 service_type + industry + tech_keywords 匹配合同
-   - 检查 end_date 是否在近3年内
-7. 汇总扣分，确定 recommend_level
-```
+**五维评分（满分 100）**:
+
+| 维度 | 满分 | 匹配逻辑 |
+|---|---|---|
+| 技术关键词 | 30 | 公司资质 scope/名称 + 合同 tech_keywords vs 标讯 tech_keywords 重叠比例 |
+| 行业经验 | 25 | 公司合同 industry vs 标讯 industry_type |
+| 项目类型 | 20 | 公司合同 service_type vs 标讯 project_type |
+| 地区匹配 | 15 | 公司合同 region vs 标讯 region（广东省内各市互通） |
+| 同类业绩 | 10 | 近 3 年同类合同（服务类型+行业+技术关键词至少匹配 2 项） |
 
 **推荐等级**:
 ```
-total_deduction <= 0: 'strong' (强推)
-total_deduction <= 2: 'yes' (可以投)
-total_deduction <= 5: 'risky' (风险)
-total_deduction > 5:  'no' (不建议)
+总分 >= 80: 'strong' (强推)
+总分 >= 60: 'yes'    (可以投)
+总分 >= 40: 'risky'  (风险)
+总分 <  40: 'no'     (不建议)
 ```
+
+**当前数据验证**：226 条标讯 → 7 strong / 54 yes / 122 risky / 43 no
 
 ---
 
@@ -317,30 +320,31 @@ src/cli/
 ## 8. 开发检查清单
 
 ### Phase A
-- [ ] 认证中间件 (auth.js)
-- [ ] 资质管理 API (qualifications.js)
-- [ ] 合同管理 API (contracts.js)
-- [ ] 平台管理 API (platforms.js)
-- [ ] 注册路由到 index.js
+- [x] 认证中间件 (auth.js)
+- [x] 资质管理 API (qualifications.js)
+- [x] 合同管理 API (contracts.js)
+- [x] 平台管理 API (platforms.js)
+- [x] 注册路由到 index.js
 
 ### Phase B
-- [ ] AI Pipeline 服务 (ai-pipeline.js)
-- [ ] 匹配引擎服务 (match-engine.js)
-- [ ] 知了 API 现有字段映射更新
+- [x] AI Pipeline v2 (ai-pipeline.js) — 元数据规则提取 + mimo AI 补充
+- [x] 匹配引擎 v2 (match-engine.js) — 五维能力匹配 (100分制)
+- [x] 知了 API 字段映射 (ingestion.js)
+- [x] doc_access_type 招标文件获取方式标记
 
 ### Phase C
-- [ ] 企微推送服务 (wecom-notify.js)
-- [ ] 定时调度更新 (scheduler.js)
+- [x] 企微推送服务 (wecom-notify.js)
+- [x] 定时调度 (scheduler.js) — 每2小时: 采集→AI→匹配→推送
 
 ### Phase D
-- [ ] CLI 框架 (cr.js)
-- [ ] CLI 认证模块
-- [ ] CLI Viewer 命令
-- [ ] CLI Admin 命令
+- [x] CLI 框架 (cr.js) — 16 个命令
+- [x] CLI 认证模块 (login/logout/whoami)
+- [x] CLI Viewer 命令 (list/show/search/today/match/qual/person/contract/status)
+- [x] CLI Admin 命令 (qual/person/contract/platform/notice/match/push/user/pipeline/stats)
 - [ ] Codex 技能打包
 
 ### Phase E
-- [ ] Admin 技能测试
-- [ ] Viewer 技能测试
-- [ ] Bug 修复
-
+- [x] 后端 API 测试 (全部端点通过)
+- [x] CLI 测试 (全部命令通过)
+- [x] 权限控制测试 (viewer 被 admin 接口拒绝)
+- [x] Bug 修复 (notices 路由 recommend_level/start_date 筛选、CLI match_result 兼容)
