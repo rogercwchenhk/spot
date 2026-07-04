@@ -119,11 +119,13 @@ export default function Settings() {
               }`} />
             </button>
             <span className="text-xs text-gray-500">{val === true || val === 'true' ? '开启' : '关闭'}</span>
-            {isModified && (
-              <button onClick={() => handleSave(key)} disabled={saving} className="text-green-600 hover:text-green-700" title="保存">
-                <Save size={14} />
-              </button>
-            )}
+            <button
+              onClick={() => handleSave(key)}
+              disabled={saving || !isModified}
+              className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded ${isModified ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+            >
+              <Save size={12} /> 保存
+            </button>
           </div>
         ) : type === 'json' ? (
           <div className="flex gap-2">
@@ -135,11 +137,13 @@ export default function Settings() {
                 isModified ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
               }`}
             />
-            {isModified && (
-              <button onClick={() => handleSave(key)} disabled={saving} className="self-end text-green-600 hover:text-green-700" title="保存">
-                <Save size={14} />
-              </button>
-            )}
+            <button
+              onClick={() => handleSave(key)}
+              disabled={saving || !isModified}
+              className={`self-end inline-flex items-center gap-1 text-xs px-2 py-1 rounded ${isModified ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+            >
+              <Save size={12} /> 保存
+            </button>
           </div>
         ) : (
           <div className="flex gap-2">
@@ -151,11 +155,13 @@ export default function Settings() {
                 isModified ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
               }`}
             />
-            {isModified && (
-              <button onClick={() => handleSave(key)} disabled={saving} className="self-end text-green-600 hover:text-green-700" title="保存">
-                <Save size={14} />
-              </button>
-            )}
+            <button
+              onClick={() => handleSave(key)}
+              disabled={saving || !isModified}
+              className={`self-end inline-flex items-center gap-1 text-xs px-2 py-1 rounded shrink-0 ${isModified ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+            >
+              <Save size={12} /> 保存
+            </button>
           </div>
         )}
         <div className="text-xs text-gray-400 mt-0.5">{key}</div>
@@ -184,15 +190,17 @@ export default function Settings() {
             <div key={section.title} className="bg-white rounded-xl border border-gray-200 p-5">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold text-gray-900">{section.title}</h3>
-                {section.fields.some(f => edited[f.key] !== undefined) && (
-                  <button
-                    onClick={() => handleSaveAll(section.fields)}
-                    disabled={saving}
-                    className="inline-flex items-center gap-1 text-xs bg-gray-900 text-white px-3 py-1.5 rounded-lg hover:bg-gray-800 disabled:opacity-50"
-                  >
-                    <Save size={12} /> 保存全部
-                  </button>
-                )}
+                <button
+                  onClick={() => handleSaveAll(section.fields)}
+                  disabled={saving || !section.fields.some(f => edited[f.key] !== undefined)}
+                  className={`inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg ${
+                    section.fields.some(f => edited[f.key] !== undefined)
+                      ? 'bg-gray-900 text-white hover:bg-gray-800'
+                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  <Save size={12} /> 保存全部
+                </button>
               </div>
               <div className="space-y-4">
                 {section.fields.map(renderField)}
