@@ -842,6 +842,11 @@ CLI 供 AI Agent 和终端用户使用，通过 Supabase Auth 认证后调用后
 | `cr admin user:list` | 列出系统用户 |
 | `cr admin user:add --email xxx --role viewer` | 新增用户 |
 | `cr admin user:role ID --role admin` | 修改用户角色 |
+| `cr admin config:list` | 查看系统配置 |
+| `cr admin config:set <key> <value>` | 更新配置 |
+| `cr admin config:push-schedule <cron>` | 设置推送时间 |
+| `cr admin config:webhook <url>` | 设置企微 Webhook |
+| `cr admin config:push-toggle <on|off>` | 开关推送 |
 | `cr admin stats` | 查看系统统计 |
 
 ### 9.2 Viewer CLI（`cr`）
@@ -908,3 +913,9 @@ cr logout
 | 3 | ~~资质类型枚举需要预设哪些？~~ | ✅ 已确认：公司资质 / 人员资质两大类，qual_type 自由填写 |
 | 4 | ~~admin 账号初始密码如何设置？~~ | ✅ 已确认：初始账号 admin@leadcom.chat，密码见 .env |
 | 5 | ~~是否需要支持忘记密码/重置密码？~~ | ✅ 已确认：支持，使用 Supabase Auth 内置重置流程 |
+│  │ 📤 企微推送                                                 │ │
+│  │                                                             │ │
+│  │  启用推送          [━━━━━●]  开启                          │ │
+│  │  推送时间          [0 9,14 * * *] (cron)                   │ │
+│  │  Webhook 地址      [https://qyapi.weixin.qq.com/...]       │ │
+│  │  去重窗口          [24 小时 ▼]                              │ │

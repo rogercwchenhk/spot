@@ -439,10 +439,24 @@ customer radar/
 | # | 问题 | 影响 | 状态 |
 |---|---|---|---|
 | 1 | 知了标讯 API 的具体接口参数和返回格式？ | Phase 1 必须确认 | 待查阅 https://ai.zhiliaobiaoxun.com/docs |
-| 2 | 企微群机器人 webhook URL？ | Phase 1 推送需要 | 待创建 |
+| 2 | 企微群机器人 webhook URL？ | Phase 1 推送需要 | 已配置，存储在 system_config 表 |
 | 3 | 公司资质文档格式（PDF/Word）？ | Phase 1 数据录入 | 已有专人管理，可 AI 提取或人工录入 |
 | 4 | 首批对接的 3 个企业自建平台是哪些？ | Phase 3 规划 | 建议选反爬等级 low 的，先跑通 |
 | 5 | Supabase 项目是否已建好表？ | Phase 1 需要确认 | 已有 001-004 迁移，检查是否已执行 |
 | 6 | 销售用 iPhone 还是 Android？ | PWA 兼容性 | 待确认 |
 - [x] 知了标讯 API 对接：Node.js 定时任务，每天 12:00 和 23:00 拉取广东省 IT 运维类公告
 - [x] 企微日报推送：每天 9:00 和 14:00 汇总推送新标讯 + 匹配结果（上班时间推送，不影响休息）
+### 6.2 推送策略
+
+- 采集与推送分离：12:00/23:00 采集入库，9:00/14:00 上班时间推送日报
+- 日报按匹配等级分组：强推、可以投、风险、不建议、待匹配
+- 同一采购单位 24 小时内只推一次
+- 推送时间、Webhook 地址、开关均可通过 `cr admin config:*` 动态配置
+### 6.1 企微群机器人 webhook
+
+Webhook 地址存储在 `system_config` 表，通过 `cr admin config:webhook <url>` 管理。
+
+```javascript
+// 优先从数据库读取，回退到 .env
+const webhookUrl = await getConfig('push.webhook_url', DEFAULT_WEBHOOK);
+```
