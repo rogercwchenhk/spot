@@ -1,10 +1,10 @@
 # 客户雷达 — 技术设计文档
 
 > 版本: v2.0 | 日期: 2026-07-03 | 基于 PRD v2.0 修正
-> 版本: v5.0 | 日期: 2026-07-04 | 新增关键词策略 v2（高级查询+分组+排除词）
-> 版本: v6.0 | 日期: 2026-07-04 | 新增关键词自进化系统（溯源+报告+调优）
 > 版本: v3.0 | 日期: 2026-07-04 | 基于 Phase B 实际验证修正
 > 版本: v4.0 | 日期: 2026-07-04 | 新增招标文件自动下载与存储设计
+> 版本: v5.0 | 日期: 2026-07-04 | 新增关键词策略 v2（高级查询+分组+排除词）
+> 版本: v6.0 | 日期: 2026-07-04 | 新增关键词自进化系统（溯源+报告+调优+前端展示）
 ---
 
 ## 1. 项目定位
@@ -564,8 +564,6 @@ bid_document (file_type = pdf/docx/doc, download_status = completed)
 
 ## 5. 查询场景
 
-## 5. 查询场景
-
 | 场景 | 走什么索引 | 示例 |
 |---|---|---|
 | 关键词搜标题 | `pg_trgm` GIN | "涉密 华为" |
@@ -582,74 +580,110 @@ bid_document (file_type = pdf/docx/doc, download_status = completed)
 customer radar/
 ├── docs/
 │   ├── product-requirements.md                    ← 需求文档
-│   ├── system-design.md                ← 本文件
-│   ├── platform-registry.md      ← 平台清单
-│   ├── ai-prompt-templates.md        ← Prompt 模板
-│   └── implementation-plan.md    ← 实施计划
+│   ├── system-design.md                           ← 本文件
+│   ├── platform-registry.md                       ← 平台清单
+│   ├── ai-prompt-templates.md                     ← Prompt 模板
+│   └── implementation-plan.md                     ← 实施计划
 ├── supabase/
 │   └── migrations/
 │       ├── 001_init_schema.sql
 │       ├── 002_platform_tech_profile.sql
 │       ├── 003_enrich_business_fields.sql
 │       ├── 004_expand_guangdong_platforms.sql
-│       ├── 005_qualification_tables.sql      ← 新增：资质表
-│       └── 006_match_result_table.sql        ← 新增：匹配结果表
+│       ├── 005_qualification_tables.sql
+│       ├── 006_match_result_table.sql
+│       ├── 007_qualification_reference.sql
+│       ├── 008_qualification_ai_fields.sql
+│       ├── 009_ai_friendly_enhancements.sql
+│       ├── 010_seed_qualification_data.sql
+│       ├── 011_fix_rls_anon_read.sql
+│       ├── 012_company_contract.sql
+│       ├── 013_doc_access_type.sql
+│       ├── 014_system_config.sql
+│       ├── 015_push_history.sql
+│       ├── 017_extend_system_config.sql
+│       ├── 018_datasource_name.sql
+│       ├── 019_bid_document.sql
+│       ├── 020_notice_scoring.sql
+│       └── 021_keyword_evolution.sql              ← 关键词自进化：溯源字段+统计视图
 ├── src/
 │   ├── server/
 │   │   ├── index.js
-│   │   ├── config.js
+│   │   ├── config.js                              ← 关键词分组配置 keywordGroups
+│   │   ├── db.js
 │   │   ├── services/
-│   │   │   ├── zhiliao-api.js
-│   │   │   ├── ai-pipeline.js
-│   │   │   ├── match-engine.js
-│   │   │   ├── wecom-notify.js
-│   │   │   ├── doc-downloader.js  ← 新增：招标文件下载服务
-│   │   │   └── scheduler.js
+│   │   │   ├── zhiliao-api.js                     ← 知了 API（searchBids + queryBidsAdvanced）
+│   │   │   ├── ingestion.js                       ← 数据入库（支持 keyword_source 溯源）
+│   │   │   ├── ai-pipeline.js                     ← AI Pipeline（规则引擎+mimo）
+│   │   │   ├── match-engine.js                    ← 匹配引擎（五维评分）
+│   │   │   ├── doc-downloader.js                  ← 招标文件下载
+│   │   │   ├── scoring-extractor.js               ← 评分标准提取
+│   │   │   ├── keyword-report.js                  ← 关键词效果报告生成
+│   │   │   ├── keyword-tuner.js                   ← 关键词自动调优引擎
+│   │   │   ├── wecom-notify.js                    ← 企微推送（日报+关键词报告）
+│   │   │   ├── config-reader.js                   ← DB 配置读取（缓存）
+│   │   │   └── scheduler.js                       ← 定时调度（采集+推送+关键词报告）
 │   │   └── routes/
+│   │       ├── admin.js                           ← 管理员 API（含 keyword-strategy/tuner/report）
 │   │       ├── notices.js
 │   │       ├── qualifications.js
+│   │       ├── contracts.js
 │   │       ├── match.js
 │   │       ├── platforms.js
+│   │       ├── config.js
 │   │       └── auth.js
 │   ├── client/
-│   │   ├── index.html
 │   │   ├── src/
 │   │   │   ├── App.jsx
 │   │   │   ├── pages/
 │   │   │   │   ├── Login.jsx
-│   │   │   │   ├── ResetPassword.jsx
 │   │   │   │   ├── NoticeList.jsx
 │   │   │   │   ├── NoticeDetail.jsx
-│   │   │   │   ├── QualificationManage.jsx
+│   │   │   │   ├── Qualifications.jsx
+│   │   │   │   ├── Platforms.jsx
 │   │   │   │   ├── Search.jsx
-│   │   │   │   ├── PlatformManage.jsx
-│   │   │   │   └── Settings.jsx
+│   │   │   │   └── Settings.jsx                   ← 含关键词策略展示组件
 │   │   │   ├── components/
-│   │   │   └── utils/
-│   │   ├── manifest.json
-│   │   └── vite.config.js
+│   │   │   │   └── Layout.jsx
+│   │   │   ├── hooks/
+│   │   │   │   └── useAuth.jsx
+│   │   │   └── lib/
+│   │   │       ├── api.js
+│   │   │       ├── supabase.js
+│   │   │       └── utils.js
+│   │   ├── vite.config.js
+│   │   ├── tailwind.config.js
+│   │   └── postcss.config.js
 │   └── cli/
 │       ├── bin/
-│       │   └── cr.js              ← CLI 入口
+│       │   └── cr.js                              ← CLI 入口
 │       ├── commands/
-│       │   ├── auth.js            ← login/logout
-│       │   ├── list.js            ← cr list
-│       │   ├── show.js            ← cr show
-│       │   ├── search.js          ← cr search
-│       │   ├── qual.js            ← cr qual/person
+│       │   ├── list.js / show.js / search.js      ← 查看命令
+│       │   ├── qual.js / person.js / contract.js  ← 资质/合同查看
+│       │   ├── status.js                          ← 系统状态
 │       │   └── admin/
-│       │       ├── qual.js        ← cr admin qual:*
-│       │       ├── person.js      ← cr admin person:*
-│       │       ├── platform.js    ← cr admin platform:*
-│       │       ├── notice.js      ← cr admin notice:*
-│       │       ├── push.js        ← cr admin push:*
-│       │       └── user.js        ← cr admin user:*
+│       │       ├── notice.js                      ← cr admin notice:*
+│       │       ├── qual.js / person.js            ← cr admin qual/person:*
+│       │       ├── contract.js                    ← cr admin contract:*
+│       │       ├── platform.js                    ← cr admin platform:*
+│       │       ├── keyword.js                     ← cr admin keyword:stats/report/tune
+│       │       ├── config.js                      ← cr admin config:*
+│       │       ├── push.js                        ← cr admin push:*
+│       │       ├── stats.js                       ← cr admin stats
+│       │       ├── user.js                        ← cr admin user:*
+│       │       └── pipeline.js                    ← cr admin pipeline
 │       ├── lib/
-│       │   ├── auth.js            ← 认证工具
-│       │   ├── api.js             ← API 请求封装
-│       │   └── output.js          ← 输出格式化
+│       │   ├── auth.js
+│       │   └── output.js
 │       └── package.json
+├── scripts/
+│   ├── test-keyword-strategy.js                   ← 关键词策略测试
+│   ├── test-scoring-extraction.js                 ← 评分提取测试
+│   └── fetch-api-docs.js                          ← API 文档抓取
+├── tests/
+│   └── cr-backend-dual-role-test.js
 ├── package.json
 ├── .env
-└── .env.example
+├── .env.example
+└── .gitignore
 ```
