@@ -1,6 +1,6 @@
 /**
  * 定时调度服务
- * 采集与推送分离，cron 表达式从数据库读取
+ * 采集与推送分离，支持多时段采集，cron 表达式从数据库读取
  */
 const cron = require('node-cron');
 const { runFullIngestion } = require('./ingestion');
@@ -9,8 +9,8 @@ const { calculatePendingMatches } = require('./match-engine');
 const { pushDailyReport } = require('./wecom-notify');
 const { getConfig } = require('./config-reader');
 
-const DEFAULT_CRON_FETCH = '0 12,23 * * *';
-const DEFAULT_CRON_PUSH  = '0 9,14 * * *';
+const DEFAULT_CRON_PUSH = '0 9,14 * * *';
+const DEFAULT_FETCH_SCHEDULES = ['0 8 * * *', '0 12 * * *', '0 18 * * *', '0 23 * * *'];
 
 /**
  * 采集 + AI + 匹配（不推送）
@@ -43,22 +43,9 @@ async function runFullPipeline() {
 }
 
 async function startScheduler() {
-  // 从数据库读取 cron 配置
-  const cronFetch = await getConfig('fetch.schedule', DEFAULT_CRON_FETCH);
+  // 推送任务
   const cronPush = await getConfig('push.schedule', DEFAULT_CRON_PUSH);
-
-  console.log(`[scheduler] 采集任务: ${cronFetch}`);
   console.log(`[scheduler] 推送任务: ${cronPush}`);
-
-  cron.schedule(cronFetch, async () => {
-    console.log(`\n[scheduler] 开始采集 ${new Date().toISOString()}`);
-    try {
-      await runFullPipeline();
-    } catch (err) {
-      console.error('[scheduler] 采集失败:', err.message);
-    }
-  });
-
   cron.schedule(cronPush, async () => {
     console.log(`\n[scheduler] 开始推送日报 ${new Date().toISOString()}`);
     try {
@@ -67,6 +54,31 @@ async function startScheduler() {
       console.error('[scheduler] 推送失败:', err.message);
     }
   });
+
+  // 采集任务：支持多时段
+  let schedules = await getConfig('fetch.schedules', null);
+  // 兼容旧的单 cron 配置
+  if (!schedules) {
+    const single = await getConfig('fetch.schedule', null);
+    schedules = single ? [single] : DEFAULT_FETCH_SCHEDULES;
+  }
+  if (!Array.isArray(schedules)) schedules = [schedules];
+
+  console.log(`[scheduler] 采集任务: ${schedules.join(', ')}`);
+  for (const expr of schedules) {
+    if (!cron.validate(expr)) {
+      console.warn(`[scheduler] 无效的 cron 表达式: ${expr}，跳过`);
+      continue;
+    }
+    cron.schedule(expr, async () => {
+      console.log(`\n[scheduler] 开始采集 ${new Date().toISOString()} (${expr})`);
+      try {
+        await runFullPipeline();
+      } catch (err) {
+        console.error('[scheduler] 采集失败:', err.message);
+      }
+    });
+  }
 }
 
 module.exports = { startScheduler, runFullPipeline };

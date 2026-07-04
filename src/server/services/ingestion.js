@@ -5,13 +5,14 @@
 const { supabaseAdmin } = require('../db');
 const { searchBids } = require('./zhiliao-api');
 const config = require('../config');
+const { getConfig } = require('./config-reader');
 
 /**
  * 将知了 API 的标讯映射为 bidding_notice 行
  */
 function mapZlbxItemToNotice(item) {
   return {
-    platform_id: 1, // 知了标讯平台
+    platform_id: 1,
     source_unique_id: String(item.bid_id),
     title: item.title || '',
     notice_type: mapBidType(item.bid_type, item.bid_process),
@@ -71,7 +72,6 @@ async function fetchAndStore(keywords, opts = {}) {
     if (items.length === 0) break;
     totalFetched += items.length;
 
-    // 批量去重检查
     const sourceIds = items.map(item => String(item.bid_id));
     const { data: existing } = await supabaseAdmin
       .from('bidding_notice')
@@ -80,7 +80,6 @@ async function fetchAndStore(keywords, opts = {}) {
       .eq('platform_id', 1);
 
     const existingIds = new Set((existing || []).map(r => r.source_unique_id));
-
     const newItems = items.filter(item => !existingIds.has(String(item.bid_id)));
     totalSkipped += items.length - newItems.length;
 
@@ -90,7 +89,6 @@ async function fetchAndStore(keywords, opts = {}) {
       continue;
     }
 
-    // 映射并插入
     const notices = newItems.map(mapZlbxItemToNotice);
     const { data: inserted, error } = await supabaseAdmin
       .from('bidding_notice')
@@ -111,7 +109,6 @@ async function fetchAndStore(keywords, opts = {}) {
     }
 
     console.log(`[ingestion] 本页新增 ${newItems.length} 条`);
-
     if (items.length < pageSize) break;
   }
 
@@ -119,24 +116,31 @@ async function fetchAndStore(keywords, opts = {}) {
 }
 
 /**
- * 完整采集流程：遍历所有配置的关键词组
+ * 完整采集流程：从 DB 读取关键词和省份配置
  */
 async function runFullIngestion() {
   console.log('=== 开始全量采集 ===');
   const startTime = Date.now();
   let totalInserted = 0;
 
-  for (const keywords of config.searchKeywords) {
+  // 从 DB 读取关键词，回退到 .env 静态配置
+  let keywordsList = await getConfig('fetch.keywords', null);
+  if (!keywordsList || !Array.isArray(keywordsList)) {
+    keywordsList = config.searchKeywords;
+  }
+  const province = await getConfig('fetch.province', config.targetProvince);
+
+  for (const kw of keywordsList) {
     try {
-      const result = await fetchAndStore(keywords, {
-        province: config.targetProvince,
+      const result = await fetchAndStore(kw, {
+        province,
         pageSize: 20,
         maxPages: 3,
       });
-      console.log(`[ingestion] ${keywords.join('+')}: 取${result.fetched} 新增${result.inserted} 跳过${result.skipped}`);
+      console.log(`[ingestion] ${kw.join('+')}: 取${result.fetched} 新增${result.inserted} 跳过${result.skipped}`);
       totalInserted += result.inserted;
     } catch (err) {
-      console.error(`[ingestion] ${keywords.join('+')} 失败:`, err.message);
+      console.error(`[ingestion] ${kw.join('+')} 失败:`, err.message);
     }
   }
 
