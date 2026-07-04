@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { radarApi } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
-import { Save, RefreshCw } from 'lucide-react';
+import { Save, RefreshCw, Pencil, X } from 'lucide-react';
 
 const SECTIONS = [
   {
@@ -52,6 +52,7 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [edited, setEdited] = useState({});
+  const [editingKey, setEditingKey] = useState(null);
   const [msg, setMsg] = useState('');
 
   const fetchConfig = () => {
@@ -68,12 +69,25 @@ export default function Settings() {
 
   const getValue = (key) => edited[key] !== undefined ? edited[key] : (config[key]?.value ?? '');
 
+  const startEdit = (key) => {
+    setEditingKey(key);
+    if (edited[key] === undefined) {
+      setEdited(prev => ({ ...prev, [key]: getValue(key) }));
+    }
+  };
+
+  const cancelEdit = (key) => {
+    setEditingKey(null);
+    setEdited(prev => { const n = { ...prev }; delete n[key]; return n; });
+  };
+
   const handleSave = async (key) => {
     setSaving(true); setMsg('');
     try {
       await radarApi.put(`/config/${encodeURIComponent(key)}`, { body: { value: parseValue(edited[key]) } });
       setMsg(`已保存: ${key}`);
       setEdited(prev => { const n = { ...prev }; delete n[key]; return n; });
+      setEditingKey(null);
       fetchConfig();
     } catch (err) { setMsg(`保存失败: ${err.message}`); }
     finally { setSaving(false); }
@@ -91,6 +105,7 @@ export default function Settings() {
     }
     setMsg(`保存完成: ${ok} 成功${fail ? `, ${fail} 失败` : ''}`);
     setEdited({});
+    setEditingKey(null);
     fetchConfig();
     setSaving(false);
   };
@@ -98,6 +113,7 @@ export default function Settings() {
   const renderField = (field) => {
     const { key, label, type } = field;
     const val = getValue(key);
+    const isEditing = editingKey === key;
     const isModified = edited[key] !== undefined;
 
     return (
@@ -109,6 +125,7 @@ export default function Settings() {
               onClick={() => {
                 const next = val === true || val === 'true' ? 'false' : 'true';
                 setEdited(prev => ({ ...prev, [key]: next }));
+                setEditingKey(key);
               }}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                 val === true || val === 'true' ? 'bg-green-500' : 'bg-gray-300'
@@ -119,48 +136,53 @@ export default function Settings() {
               }`} />
             </button>
             <span className="text-xs text-gray-500">{val === true || val === 'true' ? '开启' : '关闭'}</span>
-            <button
-              onClick={() => handleSave(key)}
-              disabled={saving || !isModified}
-              className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded ${isModified ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
-            >
+            {isModified && (
+              <>
+                <button onClick={() => handleSave(key)} disabled={saving}
+                  className="inline-flex items-center gap-1 text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700">
+                  <Save size={12} /> 保存
+                </button>
+                <button onClick={() => cancelEdit(key)} className="text-gray-400 hover:text-gray-600" title="取消">
+                  <X size={14} />
+                </button>
+              </>
+            )}
+          </div>
+        ) : isEditing ? (
+          <div className="flex gap-2">
+            {type === 'json' ? (
+              <textarea
+                value={typeof edited[key] === 'string' ? edited[key] : JSON.stringify(edited[key], null, 2)}
+                onChange={e => setEdited(prev => ({ ...prev, [key]: e.target.value }))}
+                rows={4}
+                autoFocus
+                className="flex-1 border border-yellow-400 bg-yellow-50 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-gray-900 resize-y"
+              />
+            ) : (
+              <input
+                type={type}
+                value={edited[key] ?? ''}
+                onChange={e => setEdited(prev => ({ ...prev, [key]: e.target.value }))}
+                autoFocus
+                className="flex-1 border border-yellow-400 bg-yellow-50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              />
+            )}
+            <button onClick={() => handleSave(key)} disabled={saving}
+              className="self-end inline-flex items-center gap-1 text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 shrink-0">
               <Save size={12} /> 保存
             </button>
-          </div>
-        ) : type === 'json' ? (
-          <div className="flex gap-2">
-            <textarea
-              value={typeof val === 'string' ? val : JSON.stringify(val, null, 2)}
-              onChange={e => setEdited(prev => ({ ...prev, [key]: e.target.value }))}
-              rows={4}
-              className={`flex-1 border rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-y ${
-                isModified ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
-              }`}
-            />
-            <button
-              onClick={() => handleSave(key)}
-              disabled={saving || !isModified}
-              className={`self-end inline-flex items-center gap-1 text-xs px-2 py-1 rounded ${isModified ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
-            >
-              <Save size={12} /> 保存
+            <button onClick={() => cancelEdit(key)} className="self-end text-gray-400 hover:text-gray-600 shrink-0" title="取消">
+              <X size={14} />
             </button>
           </div>
         ) : (
           <div className="flex gap-2">
-            <input
-              type={type}
-              value={val ?? ''}
-              onChange={e => setEdited(prev => ({ ...prev, [key]: e.target.value }))}
-              className={`flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent ${
-                isModified ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
-              }`}
-            />
-            <button
-              onClick={() => handleSave(key)}
-              disabled={saving || !isModified}
-              className={`self-end inline-flex items-center gap-1 text-xs px-2 py-1 rounded shrink-0 ${isModified ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
-            >
-              <Save size={12} /> 保存
+            <div className={`flex-1 border rounded-lg px-3 py-2 text-sm ${type === 'password' ? 'font-mono tracking-wider' : ''} bg-gray-50 text-gray-700 truncate`}>
+              {type === 'password' && val ? '••••••••' : (typeof val === 'object' ? JSON.stringify(val, null, 2) : String(val || ''))}
+            </div>
+            <button onClick={() => startEdit(key)}
+              className="self-end inline-flex items-center gap-1 text-xs border border-gray-200 text-gray-600 px-2 py-1 rounded hover:bg-gray-100 shrink-0">
+              <Pencil size={12} /> 编辑
             </button>
           </div>
         )}
