@@ -3,22 +3,40 @@ import { radarApi } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { Save, RefreshCw, Pencil, X, Plus, Trash2 } from 'lucide-react';
 
-// cron 数组 ↔ 时间列表互转
-function cronToTimes(cronArr) {
+// ── cron ↔ 时间列表互转 ──────────────────────────────────
+
+// fetch.schedules: cron 数组 → 时间列表
+function cronArrToTimes(cronArr) {
   if (!Array.isArray(cronArr)) return ['08:00', '12:00', '18:00', '23:00'];
   return cronArr.map(c => {
     const parts = c.split(' ');
-    const h = parts[0] || '0';
-    const m = parts[1] || '0';
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-  });
+    return `${String(parts[1] || '0').padStart(2, '0')}:${String(parts[0] || '0').padStart(2, '0')}`;
+  }).sort();
 }
 
-function timesToCron(times) {
-  return times.map(t => {
+// 时间列表 → cron 数组
+function timesToCronArr(times) {
+  return times.sort().map(t => {
     const [h, m] = t.split(':');
     return `${Number(m)} ${Number(h)} * * *`;
   });
+}
+
+// push.schedule: 单条 cron "0 9,14 * * *" → 时间列表
+function cronStrToTimes(cronStr) {
+  if (!cronStr || typeof cronStr !== 'string') return ['09:00', '14:00'];
+  const parts = cronStr.split(' ');
+  const minute = parts[0] || '0';
+  const hours = (parts[1] || '').split(',');
+  return hours.filter(Boolean).map(h => `${String(h).padStart(2, '0')}:${String(minute).padStart(2, '0')}`).sort();
+}
+
+// 时间列表 → 单条 cron
+function timesToCronStr(times) {
+  if (times.length === 0) return '0 9 * * *';
+  const minute = Number(times[0].split(':')[1]);
+  const hours = times.map(t => Number(t.split(':')[0])).sort((a, b) => a - b).join(',');
+  return `${minute} ${hours} * * *`;
 }
 
 const SECTIONS = [
@@ -48,7 +66,6 @@ const SECTIONS = [
     title: '企微推送',
     fields: [
       { key: 'push.enabled', label: '推送开关', type: 'toggle' },
-      { key: 'push.schedule', label: '推送时间', type: 'text' },
       { key: 'push.webhook_url', label: 'Webhook 地址', type: 'text' },
       { key: 'push.daily_summary', label: '日报汇总模式', type: 'toggle' },
     ],
@@ -71,17 +88,21 @@ export default function Settings() {
   const [edited, setEdited] = useState({});
   const [editingKey, setEditingKey] = useState(null);
   const [msg, setMsg] = useState('');
-  const [scheduleTimes, setScheduleTimes] = useState([]);
-  const [scheduleEditing, setScheduleEditing] = useState(false);
+  const [fetchTimes, setFetchTimes] = useState([]);
+  const [fetchEditing, setFetchEditing] = useState(false);
+  const [pushTimes, setPushTimes] = useState([]);
+  const [pushEditing, setPushEditing] = useState(false);
 
   const fetchConfig = () => {
     setLoading(true);
     radarApi.get('/config')
       .then(res => {
-        setConfig(res.data || {});
-        // 初始化采集时间
-        const raw = res.data?.['fetch.schedules']?.value;
-        setScheduleTimes(cronToTimes(typeof raw === 'string' ? JSON.parse(raw) : raw));
+        const d = res.data || {};
+        setConfig(d);
+        const fetchRaw = d['fetch.schedules']?.value;
+        setFetchTimes(cronArrToTimes(typeof fetchRaw === 'string' ? JSON.parse(fetchRaw) : fetchRaw));
+        const pushRaw = d['push.schedule']?.value;
+        setPushTimes(cronStrToTimes(typeof pushRaw === 'string' ? pushRaw.replace(/^"|"$/g, '') : pushRaw));
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -95,9 +116,7 @@ export default function Settings() {
 
   const startEdit = (key) => {
     setEditingKey(key);
-    if (edited[key] === undefined) {
-      setEdited(prev => ({ ...prev, [key]: getValue(key) }));
-    }
+    if (edited[key] === undefined) setEdited(prev => ({ ...prev, [key]: getValue(key) }));
   };
 
   const cancelEdit = (key) => {
@@ -129,24 +148,30 @@ export default function Settings() {
       } catch { fail++; }
     }
     setMsg(`保存完成: ${ok} 成功${fail ? `, ${fail} 失败` : ''}`);
-    setEdited({});
-    setEditingKey(null);
-    fetchConfig();
-    setSaving(false);
+    setEdited({}); setEditingKey(null); fetchConfig(); setSaving(false);
   };
 
-  const saveSchedule = async () => {
+  // ── 采集时间保存 ────────────────────────────
+  const saveFetchSchedule = async () => {
     setSaving(true); setMsg('');
     try {
-      const cronArr = timesToCron([...scheduleTimes].sort());
-      await radarApi.put('/config/fetch.schedules', { body: { value: cronArr } });
-      setMsg('已保存: 采集时间');
-      setScheduleEditing(false);
-      fetchConfig();
+      await radarApi.put('/config/fetch.schedules', { body: { value: timesToCronArr(fetchTimes) } });
+      setMsg('已保存: 采集时间'); setFetchEditing(false); fetchConfig();
     } catch (err) { setMsg(`保存失败: ${err.message}`); }
     finally { setSaving(false); }
   };
 
+  // ── 推送时间保存 ────────────────────────────
+  const savePushSchedule = async () => {
+    setSaving(true); setMsg('');
+    try {
+      await radarApi.put('/config/push.schedule', { body: { value: timesToCronStr(pushTimes) } });
+      setMsg('已保存: 推送时间'); setPushEditing(false); fetchConfig();
+    } catch (err) { setMsg(`保存失败: ${err.message}`); }
+    finally { setSaving(false); }
+  };
+
+  // ── 通用字段渲染 ────────────────────────────
   const renderField = (field) => {
     const { key, label, type } = field;
     const val = getValue(key);
@@ -161,8 +186,7 @@ export default function Settings() {
             <button
               onClick={() => {
                 const next = val === true || val === 'true' ? 'false' : 'true';
-                setEdited(prev => ({ ...prev, [key]: next }));
-                setEditingKey(key);
+                setEdited(prev => ({ ...prev, [key]: next })); setEditingKey(key);
               }}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                 val === true || val === 'true' ? 'bg-green-500' : 'bg-gray-300'
@@ -179,9 +203,7 @@ export default function Settings() {
                   className="inline-flex items-center gap-1 text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700">
                   <Save size={12} /> 保存
                 </button>
-                <button onClick={() => cancelEdit(key)} className="text-gray-400 hover:text-gray-600">
-                  <X size={14} />
-                </button>
+                <button onClick={() => cancelEdit(key)} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
               </>
             )}
           </div>
@@ -195,9 +217,7 @@ export default function Settings() {
                 className="flex-1 border border-yellow-400 bg-yellow-50 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-gray-900 resize-y"
               />
             ) : (
-              <input
-                type={type}
-                value={edited[key] ?? ''}
+              <input type={type} value={edited[key] ?? ''}
                 onChange={e => setEdited(prev => ({ ...prev, [key]: e.target.value }))}
                 autoFocus
                 className="flex-1 border border-yellow-400 bg-yellow-50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
@@ -207,9 +227,7 @@ export default function Settings() {
               className="self-end inline-flex items-center gap-1 text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 shrink-0">
               <Save size={12} /> 保存
             </button>
-            <button onClick={() => cancelEdit(key)} className="self-end text-gray-400 hover:text-gray-600 shrink-0">
-              <X size={14} />
-            </button>
+            <button onClick={() => cancelEdit(key)} className="self-end text-gray-400 hover:text-gray-600 shrink-0"><X size={14} /></button>
           </div>
         ) : (
           <div className="flex gap-2">
@@ -226,6 +244,57 @@ export default function Settings() {
     );
   };
 
+  // ── 时间选择器组件 ────────────────────────────
+  const renderTimePicker = ({ title, desc, times, setTimes, editing, setEditing, onSave }) => (
+    <div className="bg-white rounded-xl border border-gray-200 p-5">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+        {editing ? (
+          <div className="flex gap-2">
+            <button onClick={onSave} disabled={saving}
+              className="inline-flex items-center gap-1 text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700">
+              <Save size={12} /> 保存
+            </button>
+            <button onClick={() => { setEditing(false); fetchConfig(); }}
+              className="text-xs text-gray-500 hover:text-gray-700">取消</button>
+          </div>
+        ) : (
+          <button onClick={() => setEditing(true)}
+            className="inline-flex items-center gap-1 text-xs border border-gray-200 text-gray-600 px-2 py-1 rounded hover:bg-gray-100">
+            <Pencil size={12} /> 编辑
+          </button>
+        )}
+      </div>
+      <p className="text-xs text-gray-400 mb-3">{desc}</p>
+      {editing ? (
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {times.map((t, i) => (
+              <div key={i} className="inline-flex items-center gap-1 bg-yellow-50 border border-yellow-300 rounded-lg px-2 py-1">
+                <input type="time" value={t}
+                  onChange={e => { const next = [...times]; next[i] = e.target.value; setTimes(next); }}
+                  className="text-sm border-none bg-transparent focus:outline-none"
+                />
+                <button onClick={() => setTimes(times.filter((_, j) => j !== i))}
+                  className="text-gray-400 hover:text-red-500"><Trash2 size={12} /></button>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => setTimes([...times, '12:00'])}
+            className="inline-flex items-center gap-1 text-xs text-gray-600 border border-dashed border-gray-300 px-2 py-1 rounded hover:bg-gray-50">
+            <Plus size={12} /> 添加时间
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {times.map((t, i) => (
+            <span key={i} className="inline-flex items-center bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full">{t}</span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -235,9 +304,7 @@ export default function Settings() {
         </button>
       </div>
 
-      {msg && (
-        <div className="mb-4 text-sm bg-green-50 text-green-700 rounded-lg px-3 py-2">{msg}</div>
-      )}
+      {msg && <div className="mb-4 text-sm bg-green-50 text-green-700 rounded-lg px-3 py-2">{msg}</div>}
 
       {loading ? (
         <div className="text-center text-gray-500 py-8">加载中...</div>
@@ -252,81 +319,27 @@ export default function Settings() {
                   disabled={saving || !section.fields.some(f => edited[f.key] !== undefined)}
                   className={`inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg ${
                     section.fields.some(f => edited[f.key] !== undefined)
-                      ? 'bg-gray-900 text-white hover:bg-gray-800'
-                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  }`}
-                >
+                      ? 'bg-gray-900 text-white hover:bg-gray-800' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  }`}>
                   <Save size={12} /> 保存全部
                 </button>
               </div>
-              <div className="space-y-4">
-                {section.fields.map(renderField)}
-              </div>
+              <div className="space-y-4">{section.fields.map(renderField)}</div>
             </div>
           ))}
 
-          {/* 采集时间 — 时间列表选择器 */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-gray-900">采集时间</h3>
-              {scheduleEditing ? (
-                <div className="flex gap-2">
-                  <button onClick={saveSchedule} disabled={saving}
-                    className="inline-flex items-center gap-1 text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700">
-                    <Save size={12} /> 保存
-                  </button>
-                  <button onClick={() => { setScheduleEditing(false); fetchConfig(); }}
-                    className="text-xs text-gray-500 hover:text-gray-700">取消</button>
-                </div>
-              ) : (
-                <button onClick={() => setScheduleEditing(true)}
-                  className="inline-flex items-center gap-1 text-xs border border-gray-200 text-gray-600 px-2 py-1 rounded hover:bg-gray-100">
-                  <Pencil size={12} /> 编辑
-                </button>
-              )}
-            </div>
+          {renderTimePicker({
+            title: '采集时间', desc: '每天在以下时间自动采集标讯数据',
+            times: fetchTimes, setTimes: setFetchTimes,
+            editing: fetchEditing, setEditing: setFetchEditing, onSave: saveFetchSchedule,
+          })}
 
-            <p className="text-xs text-gray-400 mb-3">每天在以下时间自动采集标讯数据</p>
+          {renderTimePicker({
+            title: '推送时间', desc: '每天在以下时间推送日报到企微群',
+            times: pushTimes, setTimes: setPushTimes,
+            editing: pushEditing, setEditing: setPushEditing, onSave: savePushSchedule,
+          })}
 
-            {scheduleEditing ? (
-              <div className="space-y-3">
-                <div className="flex flex-wrap gap-2">
-                  {scheduleTimes.map((t, i) => (
-                    <div key={i} className="inline-flex items-center gap-1 bg-yellow-50 border border-yellow-300 rounded-lg px-2 py-1">
-                      <input
-                        type="time"
-                        value={t}
-                        onChange={e => {
-                          const next = [...scheduleTimes];
-                          next[i] = e.target.value;
-                          setScheduleTimes(next);
-                        }}
-                        className="text-sm border-none bg-transparent focus:outline-none"
-                      />
-                      <button onClick={() => setScheduleTimes(scheduleTimes.filter((_, j) => j !== i))}
-                        className="text-gray-400 hover:text-red-500">
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <button onClick={() => setScheduleTimes([...scheduleTimes, '12:00'])}
-                  className="inline-flex items-center gap-1 text-xs text-gray-600 border border-dashed border-gray-300 px-2 py-1 rounded hover:bg-gray-50">
-                  <Plus size={12} /> 添加时间
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {scheduleTimes.map((t, i) => (
-                  <span key={i} className="inline-flex items-center bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full">
-                    {t}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* 系统信息 */}
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <h3 className="text-sm font-semibold text-gray-900 mb-3">系统信息</h3>
             <div className="grid grid-cols-2 gap-3 text-sm">
