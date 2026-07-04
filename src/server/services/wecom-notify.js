@@ -4,20 +4,28 @@
  */
 const config = require('../config');
 const { supabaseAdmin } = require('../db');
+const { getConfig } = require('./config-reader');
 
-const WEBHOOK_URL = config.wecom.webhookUrl;
+const DEFAULT_WEBHOOK = config.wecom.webhookUrl;
 
 /**
  * 发送 Markdown 消息到企微群
  */
 async function sendMarkdown(content) {
-  if (!WEBHOOK_URL) {
+  const webhookUrl = await getConfig('push.webhook_url', DEFAULT_WEBHOOK);
+  if (!webhookUrl) {
     console.warn('[wecom] Webhook URL not configured');
     return { success: false, error: 'Webhook URL not configured' };
   }
 
+  const pushEnabled = await getConfig('push.enabled', true);
+  if (!pushEnabled) {
+    console.log('[wecom] Push disabled in config');
+    return { success: false, reason: 'push_disabled' };
+  }
+
   try {
-    const response = await fetch(WEBHOOK_URL, {
+    const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -45,13 +53,11 @@ async function sendMarkdown(content) {
  * 推送标讯通知
  */
 async function pushNoticeNotification(notice, matchResult) {
-  // 只推送 strong 和 yes 等级
   if (!['strong', 'yes'].includes(matchResult.recommend_level)) {
     console.log(`[wecom] Skip notice ${notice.id}: level=${matchResult.recommend_level}`);
     return { success: false, reason: 'level_not_qualified' };
   }
 
-  // 检查去重：同一采购单位24小时内只推一次
   const isDuplicate = await checkDuplicate(notice.tenderee, notice.id);
   if (isDuplicate) {
     console.log(`[wecom] Skip notice ${notice.id}: duplicate tenderee ${notice.tenderee}`);
@@ -76,7 +82,6 @@ async function pushNoticeNotification(notice, matchResult) {
   const result = await sendMarkdown(content);
 
   if (result.success) {
-    // 记录推送历史
     await recordPushHistory(notice.id, notice.tenderee);
   }
 
@@ -92,7 +97,6 @@ async function checkDuplicate(tenderee, currentNoticeId) {
   const oneDayAgo = new Date();
   oneDayAgo.setHours(oneDayAgo.getHours() - 24);
 
-  // 检查最近24小时内是否推送过同一采购单位的标讯
   const { data, error } = await supabaseAdmin
     .from('bidding_notice')
     .select('id')
@@ -113,8 +117,6 @@ async function checkDuplicate(tenderee, currentNoticeId) {
  * 记录推送历史
  */
 async function recordPushHistory(noticeId, tenderee) {
-  // 这里可以扩展为独立的推送历史表
-  // 目前简单记录在 notice_tag 中
   try {
     await supabaseAdmin
       .from('notice_tag')
@@ -133,13 +135,9 @@ async function recordPushHistory(noticeId, tenderee) {
  * 推送新匹配的标讯
  */
 async function pushNewMatches(limit = 20) {
-  // 找出有匹配结果但未推送的标讯
   const { data: matches, error } = await supabaseAdmin
     .from('match_result')
-    .select(`
-      *,
-      bidding_notice (*)
-    `)
+    .select(`*, bidding_notice (*)`)
     .in('recommend_level', ['strong', 'yes'])
     .order('calculated_at', { ascending: false })
     .limit(limit);
@@ -157,7 +155,6 @@ async function pushNewMatches(limit = 20) {
     const notice = match.bidding_notice;
     if (!notice) continue;
 
-    // 检查是否已推送
     const { data: pushTag } = await supabaseAdmin
       .from('notice_tag')
       .select('id')
@@ -190,7 +187,6 @@ async function pushNewMatches(limit = 20) {
 async function pushDailyReport() {
   const today = new Date().toISOString().slice(0, 10);
 
-  // 查询当天发布的标讯及其匹配结果
   const { data: notices, error } = await supabaseAdmin
     .from('bidding_notice')
     .select('*, match_result(*)')
@@ -203,7 +199,6 @@ async function pushDailyReport() {
     return { pushed: 0, reason: 'no_data' };
   }
 
-  // 按匹配等级分组
   const groups = { strong: [], yes: [], risky: [], no: [], unmatched: [] };
   for (const n of notices) {
     const mr = Array.isArray(n.match_result) ? n.match_result[0] : n.match_result;
@@ -219,7 +214,6 @@ async function pushDailyReport() {
     unmatched: { emoji: '⚪', label: '待匹配' },
   };
 
-  // 构建日报内容
   const dateStr = new Date().toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' });
   const timeStr = new Date().toLocaleTimeString('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit' });
   let md = `## 📊 客户雷达日报 (${dateStr} ${timeStr})\n`;
@@ -231,7 +225,7 @@ async function pushDailyReport() {
     const cfg = levelConfig[level];
     md += `### ${cfg.emoji} ${cfg.label} (${items.length}条)\n`;
 
-    const show = items.slice(0, 5); // 每类最多显示 5 条
+    const show = items.slice(0, 5);
     for (const { notice: n, match: m } of show) {
       const budget = n.budget_amount ? `¥${(n.budget_amount / 10000).toFixed(0)}万` : '-';
       const deduction = m ? ` 扣${m.total_deduction}分` : '';

@@ -1,15 +1,16 @@
 /**
  * 定时调度服务
- * 采集(12:00/23:00) 与 推送(9:00/14:00) 分离
+ * 采集与推送分离，cron 表达式从数据库读取
  */
 const cron = require('node-cron');
 const { runFullIngestion } = require('./ingestion');
 const { processPendingNotices } = require('./ai-pipeline');
 const { calculatePendingMatches } = require('./match-engine');
 const { pushDailyReport } = require('./wecom-notify');
+const { getConfig } = require('./config-reader');
 
-const CRON_FETCH = '0 12,23 * * *';  // 采集: 每天 12:00 和 23:00
-const CRON_PUSH  = '0 9,14 * * *';   // 推送: 每天 9:00 和 14:00
+const DEFAULT_CRON_FETCH = '0 12,23 * * *';
+const DEFAULT_CRON_PUSH  = '0 9,14 * * *';
 
 /**
  * 采集 + AI + 匹配（不推送）
@@ -41,12 +42,15 @@ async function runFullPipeline() {
   }
 }
 
-function startScheduler() {
-  console.log(`[scheduler] 采集任务: ${CRON_FETCH}`);
-  console.log(`[scheduler] 推送任务: ${CRON_PUSH}`);
+async function startScheduler() {
+  // 从数据库读取 cron 配置
+  const cronFetch = await getConfig('fetch.schedule', DEFAULT_CRON_FETCH);
+  const cronPush = await getConfig('push.schedule', DEFAULT_CRON_PUSH);
 
-  // 采集 + AI + 匹配（不推送）
-  cron.schedule(CRON_FETCH, async () => {
+  console.log(`[scheduler] 采集任务: ${cronFetch}`);
+  console.log(`[scheduler] 推送任务: ${cronPush}`);
+
+  cron.schedule(cronFetch, async () => {
     console.log(`\n[scheduler] 开始采集 ${new Date().toISOString()}`);
     try {
       await runFullPipeline();
@@ -55,8 +59,7 @@ function startScheduler() {
     }
   });
 
-  // 上班时间推送日报
-  cron.schedule(CRON_PUSH, async () => {
+  cron.schedule(cronPush, async () => {
     console.log(`\n[scheduler] 开始推送日报 ${new Date().toISOString()}`);
     try {
       await pushDailyReport();

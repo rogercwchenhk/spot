@@ -38,3 +38,6 @@ startScheduler();
 app.listen(PORT, () => {
   console.log(`客户雷达后端已启动: http://localhost:${PORT}`);
 });
+const configRouter = require('./routes/config');
+app.use('/api/admin', adminRouter);
+app.use('/api/config', configRouter);

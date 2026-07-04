@@ -230,6 +230,28 @@ CREATE TABLE match_result (
 - `match_details` 结构变更：v1 为 `{requirement, matched, deduction}`，v2 为 `{dimension, score, max_score, matched, ...}`
 - `unmatched_items`：v2 中不再使用（匹配结果全部在 match_details 中）
 
+### 3.10 system_config — 系统配置表
+
+```sql
+CREATE TABLE system_config (
+  key         VARCHAR(100) PRIMARY KEY,
+  value       JSONB NOT NULL,
+  description VARCHAR(500),
+  updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+默认配置项:
+| key | 默认值 | 说明 |
+|---|---|---|
+| `push.schedule` | `0 9,14 * * *` | 企微推送 cron 表达式 |
+| `push.webhook_url` | (企微 Webhook URL) | 企微群机器人地址 |
+| `push.enabled` | `true` | 推送总开关 |
+| `push.daily_summary` | `true` | 日报汇总模式 |
+| `fetch.schedule` | `0 12,23 * * *` | 标讯采集 cron 表达式 |
+
+通过 `cr admin config:*` 管理，修改后重启服务生效。
+
 ---
 
 ## 4. AI Pipeline 流程

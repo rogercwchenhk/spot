@@ -450,4 +450,53 @@ adminCmd
   });
 
 // 解析命令
+
+// 系统配置
+adminCmd
+  .command('config:list')
+  .description('查看系统配置')
+  .option('--json', 'JSON 格式输出')
+  .action(async (options) => {
+    await require('../commands/admin/config').list(options);
+  });
+
+adminCmd
+  .command('config:get <key>')
+  .description('获取单个配置')
+  .option('--json', 'JSON 格式输出')
+  .action(async (key, options) => {
+    await require('../commands/admin/config').get(key, options);
+  });
+
+adminCmd
+  .command('config:set <key> <value>')
+  .description('更新配置')
+  .option('--desc <description>', '配置说明')
+  .option('--json', 'JSON 格式输出')
+  .action(async (key, value, options) => {
+    await require('../commands/admin/config').set(key, value, options);
+  });
+
+adminCmd
+  .command('config:push-schedule <cron>')
+  .description('设置推送时间 (cron 表达式，如 "0 9,14 * * *")')
+  .action(async (cron) => {
+    await require('../commands/admin/config').setPushSchedule(cron);
+  });
+
+adminCmd
+  .command('config:webhook <url>')
+  .description('设置企微 Webhook 地址')
+  .action(async (url) => {
+    await require('../commands/admin/config').setWebhook(url);
+  });
+
+adminCmd
+  .command('config:push-toggle <on|off>')
+  .description('开关推送')
+  .action(async (val) => {
+    await require('../commands/admin/config').togglePush(val);
+  });
+
+// 解析命令
 program.parse();
