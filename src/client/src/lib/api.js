@@ -1,0 +1,58 @@
+/**
+ * API 客户端抽象层
+ * 多后端架构：每个后端独立的 baseURL + 拦截器
+ * 当前只启用 radarApi，未来可加 crmApi 等
+ */
+import { supabase } from './supabase.js';
+
+function createApiClient({ baseURL, getToken }) {
+  async function request(method, path, { body, params, headers: extraHeaders } = {}) {
+    const url = new URL(`${baseURL}${path}`);
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, v);
+      });
+    }
+
+    const headers = { 'Content-Type': 'application/json', ...extraHeaders };
+    const token = getToken ? await getToken() : null;
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(url.toString(), {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    const json = await res.json();
+    if (!res.ok) {
+      const err = new Error(json.error || `HTTP ${res.status}`);
+      err.status = res.status;
+      err.data = json;
+      throw err;
+    }
+    return json;
+  }
+
+  return {
+    get: (path, opts) => request('GET', path, opts),
+    post: (path, opts) => request('POST', path, opts),
+    put: (path, opts) => request('PUT', path, opts),
+    delete: (path, opts) => request('DELETE', path, opts),
+  };
+}
+
+// ── 客户雷达 API ──────────────────────────────────────────
+export const radarApi = createApiClient({
+  baseURL: import.meta.env.VITE_RADAR_API || '/api',
+  getToken: async () => {
+    const { data } = await supabase.auth.getSession();
+    return data?.session?.access_token || null;
+  },
+});
+
+// ── 800客 CRM API（预留，暂不启用）────────────────────────
+// export const crmApi = createApiClient({
+//   baseURL: import.meta.env.VITE_CRM_API || '',
+//   getToken: async () => localStorage.getItem('crm_token'),
+// });

@@ -919,3 +919,48 @@ cr logout
 │  │  推送时间          [0 9,14 * * *] (cron)                   │ │
 │  │  Webhook 地址      [https://qyapi.weixin.qq.com/...]       │ │
 │  │  去重窗口          [24 小时 ▼]                              │ │
+
+---
+
+## 11. 未来扩展路线（暂不实现，架构预留）
+
+### 11.1 多后端对接（800客 CRM）
+
+当前前端只对接 Customer Radar 后端。未来需要接入 800客 CRM 系统时，前端架构需支持多后端：
+
+```
+组件 → hooks/useApi() → apiClient
+                           ├── radarApi   (本项目 Express:3200)
+                           ├── crmApi     (800客 CRM)
+                           └── 共享 auth token 管理
+```
+
+**架构预留要点（搭建时即遵循）：**
+- API 调用统一走 `src/lib/api/` 抽象层，组件不直接 fetch
+- 每个后端独立的 `baseURL` + 请求/响应拦截器，通过 `.env` 配置
+- 认证 token 按后端分别管理（Supabase JWT vs 800客自有 token）
+- React Query / SWR 缓存按后端分域，避免数据串台
+- 后续 CRM 合同数据可通过后端同步给匹配引擎（类似 Cato CMS sync 模式）
+
+**实施时机：** 当 800客 CRM API 对接需求确认后，增加 `crmApi` 配置即可，页面组件无需改动。
+
+### 11.2 Capacitor 原生 App（拍照/定位/扫码）
+
+当前 PWA 能覆盖基础场景：
+- 拍照/选相册：`<input capture>` + MediaDevices API
+- 定位：Geolocation API
+- 扫码：`html5-qrcode` 等 JS 库
+
+当需要原生能力时（后台定位、蓝牙、iOS 原生推送、通讯录等），在现有 React + Vite 前端上加 Capacitor 层：
+
+```
+现在: React + Vite → 浏览器 PWA
+未来: React + Vite + Capacitor → iOS/Android App（同一套代码）
+```
+
+**架构预留要点（搭建时即遵循）：**
+- 摄像头/定位/扫码功能抽成独立 hooks（`useCamera` / `useGeolocation` / `useScanner`）
+- 不硬编码浏览器特有 API，保留替换为 Capacitor Plugin 的空间
+- 静态资源引用用相对路径，不用 `/` 绝对路径（Capacitor WebView 兼容）
+
+**实施时机：** 当业务需要原生功能时，`npm install @capacitor/core @capacitor/cli` + 对应 Plugin 即可，不重写前端。
