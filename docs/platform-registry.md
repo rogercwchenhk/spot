@@ -103,12 +103,12 @@
 | # | 平台名称 | URL | 反爬等级 | 爬虫策略 | 阶段 |
 |---|---|---|---|---|---|
 | 1 | 知了标讯 | ai.zhiliaobiaoxun.com | - | api_json | **Phase 1 主源** |
-| 2 | 千里马招标网 | www.qianlima.com | medium | requests_with_ja3 | 长期 |
+| 2 | 千里马招标网 | www.qianlima.com | medium | requests_plain | **已验证**（94条/首页） |
 | 3 | 剑鱼招标网 | www.jianyu360.com | low | api_json | **已放弃**（无API） |
-| 4 | 中国采购与招标网 | www.chinabidding.com | medium | requests_with_ja3 | 长期 |
-| 5 | 中国招标网 | www.zbcg.cn | low | api_json | 长期 |
-| 6 | 标讯快车 | www.biaoxunkuaiche.com | low | requests_plain | 长期 |
-| 7 | 招标信息网 | www.bidnews.cn | low | requests_plain | 长期 |
+| 4 | 中国采购与招标网 | www.chinabidding.com | medium | requests_plain | **已验证**（174条/首页） |
+| 5 | 中国招标网 | www.zbcg.cn | low | api_json | TLS错误，需大陆服务器 |
+| 6 | 标讯快车 | www.biaoxunkuaiche.com | low | requests_plain | SSL证书过期 |
+| 7 | 招标信息网 | www.bidnews.cn | low | requests_plain | SPA超时 |
 
 ---
 

@@ -19,6 +19,7 @@ import hashlib
 import argparse
 import re
 from datetime import datetime
+from urllib.parse import urljoin
 
 
 def log(msg):
@@ -49,7 +50,6 @@ def get_fetcher(strategy):
         return lambda url: StealthyFetcher.fetch(url, headless=True, network_idle=True, timeout=30000)
 
     else:
-        # Fallback: try plain HTTP first
         log(f"Unknown strategy '{strategy}', falling back to requests_plain")
         from scrapling.fetchers import Fetcher
         return lambda url: Fetcher.get(url, stealthy_headers=True, timeout=30)
@@ -108,6 +108,9 @@ def generate_source_id(url, title):
 def crawl_listing_page(platform):
     """
     爬取单个平台的列表页，提取招标公告列表。
+    支持两种选择器格式：
+      旧格式: list_item 直接是链接 (如 'li a')
+      新格式: list_item 是容器 + 分离的 title/link/date 选择器
     
     Args:
         platform: dict, 包含:
@@ -143,19 +146,21 @@ def crawl_listing_page(platform):
         base_url = pagination.get('base_url', list_url)
         start = pagination.get('start', 1)
         max_pages = pagination.get('max_pages', 5)
-        # 首页
         urls_to_crawl = [base_url if '{page}' not in base_url else base_url.replace('{page}', str(start))]
-        # 后续页
         for p in range(start + 1, start + max_pages):
             if '{page}' in base_url:
                 urls_to_crawl.append(base_url.replace('{page}', str(p)))
-    elif pag_type == 'next_link':
-        # 由爬取过程中动态发现
-        pass
-    # api_offset 和 dynamic_api 通常需要单独处理，先爬首页
 
     title_kw = selectors.get('notice_type_keywords', {})
     min_title_len = selectors.get('min_title_length', 10)
+    link_base = selectors.get('link_base', '')
+
+    # 判断选择器格式：新格式有 link_selector，旧格式没有
+    link_sel = selectors.get('link_selector', '')
+    title_sel = selectors.get('title_selector', '')
+    date_sel = selectors.get('date_selector', '')
+    link_pattern = selectors.get('link_pattern', '')
+    date_format = selectors.get('date_format', '')
 
     for page_url in urls_to_crawl:
         try:
@@ -172,68 +177,138 @@ def crawl_listing_page(platform):
 
             # 提取列表项
             list_sel = selectors.get('list_item', 'li a')
-            links = page.css(list_sel)
-            log(f"  Selector '{list_sel}': {len(links)} matches")
+            items = page.css(list_sel)
+            log(f"  Selector '{list_sel}': {len(items)} matches")
 
-            link_base = selectors.get('link_base', '')
-            for link in links:
-                href = link.attrib.get('href', '')
-                title_text = link.css('::text').get(default='').strip()
+            if link_sel:
+                # 新格式：items 是容器，需要在每个容器内提取 link
+                for item in items:
+                    link_el = item.css(link_sel)
+                    if not link_el:
+                        continue
+                    link = link_el[0]
+                    href = link.attrib.get('href', '')
 
-                if not title_text or len(title_text) < min_title_len:
-                    continue
+                    # 过滤链接模式
+                    if link_pattern and link_pattern not in href:
+                        continue
 
-                # 构造完整 URL
-                full_url = href
-                if href and not href.startswith('http'):
-                    if link_base:
-                        from urllib.parse import urljoin
-                        full_url = urljoin(link_base, href)
-                    else:
-                        full_url = href
+                    # 提取标题（优先用 title 属性，其次用选择器）
+                    title_text = ''
+                    if title_sel:
+                        title_el = item.css(title_sel)
+                        if title_el:
+                            title_text = title_el[0].attrib.get('title', '').strip()
+                            if not title_text:
+                                title_text = title_el[0].css('::text').get(default='').strip()
+                    if not title_text:
+                        title_text = link.attrib.get('title', '').strip()
+                    if not title_text:
+                        title_text = link.css('::text').get(default='').strip()
 
-                # 判断公告类型
-                notice_type = classify_notice_type(title_text, title_kw)
+                    if not title_text or len(title_text) < min_title_len:
+                        continue
 
-                # 尝试提取日期（从同级或父元素）
-                date_text = ''
-                date_sel = selectors.get('date_class', '')
-                if date_sel:
+                    # 构造完整 URL
+                    full_url = href
+                    if href and not href.startswith('http'):
+                        full_url = urljoin(link_base or page_url, href)
+
+                    # 判断公告类型
+                    notice_type = classify_notice_type(title_text, title_kw)
+
+                    # 提取日期
+                    pub_date = None
+                    if date_sel:
+                        date_el = item.css(date_sel)
+                        if date_el:
+                            date_text = date_el[0].css('::text').get(default='').strip()
+                            if date_format == 'MM-DD' and re.match(r'\d{2}-\d{2}', date_text):
+                                year = datetime.now().year
+                                pub_date = f"{year}-{date_text}"
+                            else:
+                                pub_date = extract_date(date_text)
+                    if not pub_date:
+                        pub_date = datetime.now().strftime('%Y-%m-%d')
+
+                    all_items.append({
+                        'source_unique_id': generate_source_id(full_url, title_text),
+                        'title': title_text,
+                        'notice_type': notice_type,
+                        'source_url': full_url,
+                        'publish_date': pub_date,
+                        'budget_amount': 0,
+                        'city': region,
+                        'region_scope': region,
+                        'data_source': 'scrapling',
+                    })
+
+            else:
+                # 旧格式：list_item 直接是链接
+                for link in items:
+                    href = link.attrib.get('href', '')
+                    title_text = link.css('::text').get(default='').strip()
+
+                    if not title_text or len(title_text) < min_title_len:
+                        continue
+
+                    full_url = href
+                    if href and not href.startswith('http'):
+                        full_url = urljoin(link_base or page_url, href)
+
+                    notice_type = classify_notice_type(title_text, title_kw)
+
+                    # 旧格式日期提取
+                    date_text = ''
+                    date_class = selectors.get('date_class', '')
                     parent = link.parent
                     if parent:
-                        date_el = parent.css(date_sel)
-                        if date_el:
-                            date_text = date_el.css('::text').get(default='')
+                        if parent.tag == 'td':
+                            # 表格布局：日期在 tr 的其他 td 中
+                            tr = parent.parent
+                            if tr and hasattr(tr, 'tag') and tr.tag == 'tr':
+                                tds = tr.css('td')
+                                for td in tds:
+                                    td_text = td.css('::text').get(default='').strip()
+                                    if re.match(r'\d{2}-\d{2}', td_text):
+                                        date_text = td_text
+                                        break
+                        elif date_class:
+                            # 列表布局：日期在 span 等子元素中
+                            date_el = parent.css(date_class)
+                            if date_el:
+                                date_text = date_el.css('::text').get(default='')
 
-                pub_date = extract_date(date_text) or datetime.now().strftime('%Y-%m-%d')
+                    # 支持 MM-DD 格式（如千里马）
+                    date_text_clean = date_text.strip() if date_text else ''
+                    if date_text_clean and re.match(r'\d{2}-\d{2}', date_text_clean):
+                        year = datetime.now().year
+                        pub_date = f"{year}-{date_text_clean}"
+                    else:
+                        pub_date = extract_date(date_text) or datetime.now().strftime('%Y-%m-%d')
+                    budget = extract_budget(date_text)
 
-                # 预算（列表页通常没有，留空给详情页）
-                budget = extract_budget(date_text)
-
-                item = {
-                    'source_unique_id': generate_source_id(full_url, title_text),
-                    'title': title_text,
-                    'notice_type': notice_type,
-                    'source_url': full_url,
-                    'publish_date': pub_date,
-                    'budget_amount': budget,
-                    'city': region,
-                    'region_scope': region,
-                    'data_source': 'scrapling',
-                }
-                all_items.append(item)
+                    all_items.append({
+                        'source_unique_id': generate_source_id(full_url, title_text),
+                        'title': title_text,
+                        'notice_type': notice_type,
+                        'source_url': full_url,
+                        'publish_date': pub_date,
+                        'budget_amount': budget,
+                        'city': region,
+                        'region_scope': region,
+                        'data_source': 'scrapling',
+                    })
 
             # 动态翻页: 查找 "下一页" 链接
             if pag_type == 'next_link' and len(urls_to_crawl) <= pages_crawled:
-                next_sel = pagination.get('next_selector', 'a:contains("下一页"), .next a, a.next')
-                # 简单处理：查找含 "下一页" 的链接
                 for a in page.css('a'):
                     a_text = a.css('::text').get(default='')
                     a_href = a.attrib.get('href', '')
                     if '下一页' in a_text or '下页' in a_text:
                         if a_href and a_href != '#':
                             if not a_href.startswith('http'):
-                                a_href = f"{link_base}{a_href}" if link_base else a_href
+                                a_href = urljoin(link_base or page_url, a_href)
                             urls_to_crawl.append(a_href)
                             break
 
@@ -255,14 +330,6 @@ def crawl_listing_page(platform):
 def crawl_detail_page(url, selectors, strategy='requests_plain'):
     """
     爬取详情页，提取正文内容。
-    
-    Args:
-        url: 详情页 URL
-        selectors: detail_selectors 配置
-        strategy: 爬虫策略
-    
-    Returns:
-        dict: {title, content, publish_date, budget, attachments, url}
     """
     fetcher = get_fetcher(strategy)
 
@@ -273,38 +340,32 @@ def crawl_detail_page(url, selectors, strategy='requests_plain'):
         if page.status != 200:
             return {'error': f'HTTP {page.status}', 'url': url}
 
-        # 提取标题
         title_sel = selectors.get('title', 'h1, h2')
         title = page.css(f'{title_sel}::text').get(default='').strip()
 
-        # 提取正文
         content_sel = selectors.get('content', '.content, .detail, article')
         content_el = page.css(content_sel)
         if content_el:
             content = content_el[0].text_content() if hasattr(content_el[0], 'text_content') else content_el.css('::text').get(default='')
         else:
-            # Fallback: body text
             body = page.css('body')
             content = body[0].text_content() if body else ''
 
-        # 提取日期
         date_sel = selectors.get('publish_date', '.date, .time')
         date_text = page.css(f'{date_sel}::text').get(default='')
         pub_date = extract_date(date_text)
 
-        # 提取附件链接
-        attach_sel = selectors.get('attachments', 'a[href$=".pdf"], a[href$=".doc"], a[href$=".zip"]')
         attachment_urls = []
         for a in page.css('a'):
             href = a.attrib.get('href', '')
             if re.search(r'\.(pdf|docx?|zip|rar)(\?|$)', href, re.I):
                 if not href.startswith('http'):
-                    href = f"{url.rstrip('/')}/{href.lstrip('/')}"
+                    href = urljoin(url, href)
                 attachment_urls.append(href)
 
         return {
             'title': title,
-            'content': content[:50000],  # 限制长度
+            'content': content[:50000],
             'publish_date': pub_date,
             'budget_amount': extract_budget(content),
             'attachment_urls': attachment_urls,
@@ -326,7 +387,6 @@ def main():
 
     args = parser.parse_args()
 
-    # 读取配置
     if args.stdin:
         config = json.loads(sys.stdin.read())
     elif args.platform:
@@ -335,7 +395,6 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    # 详情页模式
     if args.detail:
         url = args.url or config.get('url', '')
         selectors = json.loads(args.selectors) if args.selectors else config.get('selectors', {})
@@ -344,7 +403,6 @@ def main():
         print(json.dumps(result, ensure_ascii=False))
         return
 
-    # 列表页模式
     platform = config.get('platform', config)
     result = crawl_listing_page(platform)
     print(json.dumps(result, ensure_ascii=False))
