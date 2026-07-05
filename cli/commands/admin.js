@@ -206,6 +206,47 @@ function register(program, api) {
         }
       } catch (e) { error(e.message, program.opts().json); }
     });
+
+  // detail — 千里马详情页爬取
+  program
+    .command('detail [id]')
+    .description('爬取千里马详情页')
+    .option('--batch', '批量爬取未处理的千里马标讯')
+    .option('--limit <n>', '批量爬取条数', '5')
+    .option('--delay <n>', '请求间隔秒数', '30')
+    .action(async (id, opts) => {
+      try {
+        let res;
+        if (opts.batch) {
+          res = await api.post('/api/crawl/detail-batch', {
+            limit: Number(opts.limit),
+            delay: Number(opts.delay),
+          });
+        } else if (id) {
+          res = await api.post(`/api/crawl/detail/${id}`);
+        } else {
+          error('请指定标讯ID或使用 --batch', program.opts().json);
+          return;
+        }
+
+        if (program.opts().json) {
+          success(res, true);
+        } else {
+          if (opts.batch) {
+            console.log(`
+  批量详情页爬取完成:`);
+            console.log(`    处理: ${res.data?.processed || 0}`);
+            console.log(`    更新: ${res.data?.updated || 0}`);
+          } else {
+            console.log(`
+  详情页爬取完成`);
+            if (res.data?.title) console.log(`    标题: ${res.data.title.slice(0, 60)}`);
+            if (res.data?.content) console.log(`    正文: ${res.data.content.length} 字符`);
+          }
+          console.log('');
+        }
+      } catch (e) { error(e.message, program.opts().json); }
+    });
 }
 
 module.exports = { register };
