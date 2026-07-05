@@ -12,6 +12,7 @@ const matchRouter = require('./routes/match');
 const authRouter = require('./routes/auth');
 const adminRouter = require('./routes/admin');
 const configRouter = require('./routes/config');
+const crawlRouter = require('./routes/crawl');
 
 const app = express();
 const PORT = process.env.PORT || 3200;
@@ -69,6 +70,7 @@ app.use('/api/config', configRouter);
 
 // 管理员 API
 app.use('/api/admin', adminRouter);
+app.use('/api/crawl', crawlRouter);
 
 // ── 全局错误处理 ────────────────────────────────────────────
 app.use((err, req, res, _next) => {
