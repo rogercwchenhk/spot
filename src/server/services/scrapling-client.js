@@ -100,6 +100,7 @@ function mapScraplingItemToNotice(item, platformId) {
     notice_content: item.content || '',
     data_source: 'scrapling',
     ai_status: 0,
+    keyword_source: item.keyword_source || 'scrapling',
   };
 }
 
