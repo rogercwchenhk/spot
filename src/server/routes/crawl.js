@@ -257,4 +257,77 @@ router.get('/platforms/ready', requireAuth, async (req, res) => {
   }
 });
 
+// POST /api/crawl/detail/:id — 爬取千里马详情页
+router.post('/detail/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { crawlDetail, updateNoticeDetail } = require('../services/qianlima-detail');
+
+    // 获取标讯信息
+    const { data: notice, error } = await supabaseAdmin
+      .from('bidding_notice')
+      .select('id, source_url, title')
+      .eq('id', id)
+      .single();
+
+    if (error || !notice) {
+      return res.status(404).json({ success: false, error: 'Notice not found' });
+    }
+
+    if (!notice.source_url || !notice.source_url.includes('qianlima.com')) {
+      return res.status(400).json({ success: false, error: 'Not a qianlima notice' });
+    }
+
+    console.log();
+    const detail = await crawlDetail(notice.source_url);
+
+    if (detail.status === 'success') {
+      await updateNoticeDetail(id, detail);
+    }
+
+    res.json({ success: true, data: detail });
+  } catch (err) {
+    console.error('[crawl] Detail error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/crawl/detail-batch — 批量爬取千里马详情页
+router.post('/detail-batch', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { limit = 5, delay = 30 } = req.body;
+    const { crawlDetailBatch, getQianlimaNoticesNeedingDetail, updateNoticeDetail } = require('../services/qianlima-detail');
+
+    const notices = await getQianlimaNoticesNeedingDetail(limit);
+    if (notices.length === 0) {
+      return res.json({ success: true, data: { processed: 0, message: 'No notices need detail crawling' } });
+    }
+
+    console.log();
+    const urls = notices.map(n => n.source_url);
+    const results = await crawlDetailBatch(urls, delay);
+
+    // 更新数据库
+    let updated = 0;
+    for (let i = 0; i < results.length; i++) {
+      if (results[i].status === 'success') {
+        await updateNoticeDetail(notices[i].id, results[i]);
+        updated++;
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        processed: notices.length,
+        updated,
+        results,
+      },
+    });
+  } catch (err) {
+    console.error('[crawl] Batch detail error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;
