@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { radarApi } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
-import { Save, RefreshCw, Pencil, X, Plus, Trash2, Target, Tag, TrendingUp, Settings2 } from 'lucide-react';
+import { Save, RefreshCw, Pencil, X, Plus, Trash2, Target, Tag, TrendingUp, Settings2, Users, Clock, Key, Database } from 'lucide-react';
 
 // ── cron ↔ 时间列表互转 ──────────────────────────────────
 
@@ -26,7 +26,7 @@ function cronStrToTimes(cronStr) {
   const parts = cronStr.split(' ');
   const minute = parts[0] || '0';
   const hours = (parts[1] || '').split(',');
-  return hours.filter(Boolean).map(h => `${String(h).padStart(2, '0')}:${String(minute).padStart(2, '0')}`).sort();
+  return hours.filter(Boolean).map(h => `${String(h).padStart(2, '0')}:${minute.padStart(2, '0')}`).sort();
 }
 
 function timesToCronStr(times) {
@@ -40,9 +40,9 @@ const SECTIONS = [
   {
     title: '数据源',
     fields: [
-      { key: 'datasource.name', label: '数据源名称', type: 'text' },
+      { key: 'datasource.name', label: '数据源名称', type: 'text', default: '知了标讯' },
       { key: 'datasource.zlbx.api_key', label: 'API Key', type: 'password' },
-      { key: 'datasource.zlbx.base_url', label: 'API 地址', type: 'text' },
+      { key: 'datasource.zlbx.base_url', label: 'API URL', type: 'text', default: 'https://mcp-server.zhiliaobiaoxun.com/api_v2' },
     ],
   },
   {
@@ -50,14 +50,14 @@ const SECTIONS = [
     fields: [
       { key: 'llm.api_key', label: 'API Key', type: 'password' },
       { key: 'llm.model', label: '模型名称', type: 'text' },
-      { key: 'llm.base_url', label: 'API 地址', type: 'text' },
+      { key: 'llm.base_url', label: 'API URL', type: 'text' },
     ],
   },
   {
     title: '数据采集',
     fields: [
       { key: 'fetch.province', label: '目标省份', type: 'text' },
-      { key: 'fetch.keywords', label: '搜索关键词组', type: 'json' },
+      { key: 'fetch.keywords', label: '搜索关键词组', type: 'keywords' },
     ],
   },
   {
@@ -69,6 +69,31 @@ const SECTIONS = [
     ],
   },
 ];
+
+const TABS = [
+  { key: 'model', label: '模型与数据源', icon: Database },
+  { key: 'keywords', label: '关键词', icon: Key },
+  { key: 'schedule', label: '定时任务', icon: Clock },
+  { key: 'users', label: '用户', icon: Users },
+];
+
+// ── 格式化字段值显示 ────────────────────────────
+function formatFieldValue(type, val, defaultVal) {
+  if (type === 'password' && val) {
+    return val.length > 12 ? val.slice(0, 8) + '***' + val.slice(-4) : '••••••••';
+  }
+  if (type === 'keywords') {
+    let parsed = val;
+    if (typeof val === 'string') {
+      try { parsed = JSON.parse(val); } catch { parsed = null; }
+    }
+    if (Array.isArray(parsed)) {
+      return parsed.flatMap(g => (g.groups || []).flatMap(ig => ig.keywords || [])).join('，');
+    }
+  }
+  if (typeof val === 'object') return JSON.stringify(val, null, 2);
+  return String(val || defaultVal || '');
+}
 
 function parseValue(raw) {
   const trimmed = typeof raw === 'string' ? raw.trim() : raw;
@@ -245,7 +270,7 @@ function UserManagement() {
   const [addOpen, setAddOpen] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [newRole, setNewRole] = useState('viewer');
+  const [newRole, setNewRole] = useState('sales');
   const [saving, setSaving] = useState(false);
 
   const fetchUsers = () => {
@@ -264,7 +289,7 @@ function UserManagement() {
     try {
       await radarApi.post('/admin/users', { body: { email: newEmail, password: newPassword, role: newRole } });
       toast.success('用户已创建');
-      setAddOpen(false); setNewEmail(''); setNewPassword(''); setNewRole('viewer');
+      setAddOpen(false); setNewEmail(''); setNewPassword(''); setNewRole('sales');
       fetchUsers();
     } catch (err) { toast.error('创建失败: ' + err.message); }
     finally { setSaving(false); }
@@ -297,10 +322,10 @@ function UserManagement() {
               placeholder="密码" className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" />
             <select value={newRole} onChange={e => setNewRole(e.target.value)}
               className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400">
-              <option value="sales">Sales (sales)</option>
-              <option value="presales">PreSales (presales)</option>
-              <option value="hr">HR (hr)</option>
-              <option value="admin">Admin (admin)</option>
+              <option value="sales">销售</option>
+              <option value="presales">售前</option>
+              <option value="hr">人事</option>
+              <option value="admin">管理员</option>
             </select>
           </div>
           <div className="flex gap-2">
@@ -332,10 +357,10 @@ function UserManagement() {
                   <td className="px-3 py-2.5">
                     <select value={u.role} onChange={e => handleRoleChange(u.id, e.target.value)}
                       className="text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
-                      <option value="sales">Sales</option>
-                      <option value="presales">PreSales</option>
-                      <option value="hr">HR</option>
-                      <option value="admin">Admin</option>
+                      <option value="sales">销售</option>
+                      <option value="presales">售前</option>
+                      <option value="hr">人事</option>
+                      <option value="admin">管理员</option>
                     </select>
                   </td>
                   <td className="px-3 py-2.5 text-xs text-slate-400">
@@ -359,11 +384,13 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [edited, setEdited] = useState({});
   const [editingKey, setEditingKey] = useState(null);
-  
+
   const [fetchTimes, setFetchTimes] = useState([]);
   const [fetchEditing, setFetchEditing] = useState(false);
   const [pushTimes, setPushTimes] = useState([]);
   const [pushEditing, setPushEditing] = useState(false);
+
+  const [activeTab, setActiveTab] = useState('model');
 
   const fetchConfig = () => {
     setLoading(true);
@@ -443,7 +470,7 @@ export default function Settings() {
 
   // ── 通用字段渲染 ────────────────────────────
   const renderField = (field) => {
-    const { key, label, type } = field;
+    const { key, label, type, default: defaultVal } = field;
     const val = getValue(key);
     const isEditing = editingKey === key;
     const isModified = edited[key] !== undefined;
@@ -501,9 +528,15 @@ export default function Settings() {
           </div>
         ) : (
           <div className="flex gap-2">
-            <div className={`flex-1 border rounded-lg px-3 py-2 text-sm ${type === 'password' ? 'font-mono tracking-wider' : ''} bg-slate-50 text-slate-700 truncate`}>
-              {type === 'password' && val ? '••••••••' : (typeof val === 'object' ? JSON.stringify(val, null, 2) : String(val || ''))}
-            </div>
+            {type === 'keywords' ? (
+              <div className="flex-1 border rounded-lg px-3 py-2 text-sm bg-slate-50 text-slate-700 whitespace-pre-wrap max-h-40 overflow-y-auto">
+                {formatFieldValue(type, val, defaultVal)}
+              </div>
+            ) : (
+              <div className={`flex-1 border rounded-lg px-3 py-2 text-sm ${type === 'password' ? 'font-mono tracking-wider' : ''} bg-slate-50 text-slate-700 truncate`}>
+                {formatFieldValue(type, val, defaultVal)}
+              </div>
+            )}
             <button onClick={() => startEdit(key)}
               className="self-end inline-flex items-center gap-1 text-xs border border-slate-200/80 text-slate-600 px-2 py-1 rounded hover:bg-slate-100 shrink-0">
               <Pencil size={12} /> 编辑
@@ -569,70 +602,97 @@ export default function Settings() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold">系统设置</h2>
         <button onClick={fetchConfig} className="text-slate-500 hover:text-slate-700" title="刷新">
           <RefreshCw size={16} />
         </button>
       </div>
 
+      {/* Tab 栏 */}
+      <div className="flex gap-1 border-b border-slate-200 mb-6">
+        {TABS.map(tab => {
+          const Icon = tab.icon;
+          return (
+            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
+                activeTab === tab.key
+                  ? 'border-indigo-600 text-indigo-700'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+              }`}>
+              <Icon size={15} />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
 
       {loading ? (
         <div className="text-center text-slate-500 py-8">加载中...</div>
       ) : (
-        <div className="space-y-6">
-          {SECTIONS.map(section => (
-            <div key={section.title} className="bg-white rounded-xl border border-slate-200/80 p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-slate-900">{section.title}</h3>
-                <button
-                  onClick={() => handleSaveAll(section.fields)}
-                  disabled={saving || !section.fields.some(f => edited[f.key] !== undefined)}
-                  className={`inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg ${
-                    section.fields.some(f => edited[f.key] !== undefined)
-                      ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                  }`}>
-                  <Save size={12} /> 保存全部
-                </button>
+        <>
+          {/* 模型与数据源 */}
+          {activeTab === 'model' && (
+            <div className="space-y-6">
+              {SECTIONS.map(section => (
+                <div key={section.title} className="bg-white rounded-xl border border-slate-200/80 p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-semibold text-slate-900">{section.title}</h3>
+                    <button
+                      onClick={() => handleSaveAll(section.fields)}
+                      disabled={saving || !section.fields.some(f => edited[f.key] !== undefined)}
+                      className={`inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg ${
+                        section.fields.some(f => edited[f.key] !== undefined)
+                          ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                      }`}>
+                      <Save size={12} /> 保存全部
+                    </button>
+                  </div>
+                  <div className="space-y-4">{section.fields.map(renderField)}</div>
+                </div>
+              ))}
+              <div className="bg-white rounded-xl border border-slate-200/80 p-5">
+                <h3 className="text-sm font-semibold text-slate-900 mb-3">系统信息</h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div><span className="text-slate-500">版本：</span>1.0.0</div>
+                  <div><span className="text-slate-500">数据源：</span>{config['datasource.name']?.value || '知了标讯'}</div>
+                  <div><span className="text-slate-500">AI 模型：</span>{config['llm.model']?.value || 'mimo-v2.5-pro'}</div>
+                  <div><span className="text-slate-500">数据库：</span>Supabase (PostgreSQL)</div>
+                </div>
               </div>
-              <div className="space-y-4">{section.fields.map(renderField)}</div>
             </div>
-          ))}
+          )}
 
-          {renderTimePicker({
-            title: '采集时间', desc: '每天在以下时间自动采集标讯数据',
-            times: fetchTimes, setTimes: setFetchTimes,
-            editing: fetchEditing, setEditing: setFetchEditing, onSave: saveFetchSchedule,
-          })}
-
-          {renderTimePicker({
-            title: '推送时间', desc: '每天在以下时间推送日报到企微群',
-            times: pushTimes, setTimes: setPushTimes,
-            editing: pushEditing, setEditing: setPushEditing, onSave: savePushSchedule,
-          })}
-
-          {/* 关键词策略 */}
-          <div className="bg-white rounded-xl border border-slate-200/80 p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <Settings2 size={16} className="text-slate-700" />
-              <h3 className="text-sm font-semibold text-slate-900">关键词策略</h3>
+          {/* 关键词 */}
+          {activeTab === 'keywords' && (
+            <div className="bg-white rounded-xl border border-slate-200/80 p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Settings2 size={16} className="text-slate-700" />
+                <h3 className="text-sm font-semibold text-slate-900">关键词策略</h3>
+              </div>
+              <KeywordStrategySection />
             </div>
-            <KeywordStrategySection />
-          </div>
+          )}
 
-          {/* 用户管理 */}
-          <UserManagement />
-
-          <div className="bg-white rounded-xl border border-slate-200/80 p-5">
-            <h3 className="text-sm font-semibold text-slate-900 mb-3">系统信息</h3>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div><span className="text-slate-500">版本：</span>1.0.0</div>
-              <div><span className="text-slate-500">数据源：</span>{config['datasource.name']?.value || '知了标讯'}</div>
-              <div><span className="text-slate-500">AI 模型：</span>{config['llm.model']?.value || 'mimo-v2.5-pro'}</div>
-              <div><span className="text-slate-500">数据库：</span>Supabase (PostgreSQL)</div>
+          {/* 定时任务 */}
+          {activeTab === 'schedule' && (
+            <div className="space-y-6">
+              {renderTimePicker({
+                title: '采集时间', desc: '每天在以下时间自动采集标讯数据',
+                times: fetchTimes, setTimes: setFetchTimes,
+                editing: fetchEditing, setEditing: setFetchEditing, onSave: saveFetchSchedule,
+              })}
+              {renderTimePicker({
+                title: '推送时间', desc: '每天在以下时间推送日报到企微群',
+                times: pushTimes, setTimes: setPushTimes,
+                editing: pushEditing, setEditing: setPushEditing, onSave: savePushSchedule,
+              })}
             </div>
-          </div>
-        </div>
+          )}
+
+          {/* 用户 */}
+          {activeTab === 'users' && <UserManagement />}
+        </>
       )}
     </div>
   );

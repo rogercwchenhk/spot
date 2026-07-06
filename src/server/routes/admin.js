@@ -439,8 +439,8 @@ router.put('/users/:id/role', async (req, res) => {
     const { id } = req.params;
     const { role } = req.body;
 
-    if (!['admin', 'viewer'].includes(role)) {
-      return res.status(400).json({ success: false, error: 'Role must be admin or viewer' });
+    if (!['admin', 'hr', 'presales', 'sales'].includes(role)) {
+      return res.status(400).json({ success: false, error: 'Role must be admin, hr, presales, or sales' });
     }
 
     const { data, error } = await supabaseAdmin.auth.admin.updateUserById(id, {
