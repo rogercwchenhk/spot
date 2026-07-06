@@ -462,4 +462,68 @@ router.put('/users/:id/role', async (req, res) => {
   }
 });
 
+
+// POST /api/admin/notices/cleanup - remove irrelevant notices (exclude + positive keyword filter)
+router.post('/notices/cleanup', async (req, res) => {
+  try {
+    const config = require('../config');
+    const { excludeKeywords } = config;
+
+    const POSITIVE_IT_KEYWORDS = [
+      '运维', '维保', 'IT', '信息化', '信息技术', '服务器', '存储', '网络', '数据库', '小型机', '驻场', '机房', '数据中心',
+      '系统集成', '弱电', '安防', '监控', '视频会议', '通信', '云计算', '虚拟化', '中间件',
+      '安全服务', '信息安全', '网络安全', '网安', '数据安全', '应用系统', '信息中心', '技术支撑', '技术支持',
+      '桌面运维', '桌面外包', '网络运维', '系统运维', '基础设施', '计算机', '软件', '硬件', '数据', '数字化',
+      '交换机', '路由器', '防火墙', 'UPS', '备份', '容灾', '灾备', '政务', '电子政务',
+      'IBM', 'Oracle', 'HP', 'HPE', 'Dell', '华为', '华三', 'H3C', '锐捷', '深信服', '天融信',
+      'Power', 'AIX', 'Linux', 'Windows Server', 'VMware', 'Vmware', 'ITO',
+    ];
+    const positivePattern = new RegExp(POSITIVE_IT_KEYWORDS.join('|'), 'i');
+    const excludePattern = new RegExp(excludeKeywords.join('|'), 'i');
+
+    const { data: notices, error } = await supabaseAdmin
+      .from('bidding_notice')
+      .select('id, title, tenderee, tender_agent');
+    if (error) throw error;
+
+    const toDelete = [];
+    const details = [];
+    for (const notice of notices || []) {
+      const titleText = notice.title || '';
+      // Only check title for exclude keywords (not tenderee/tender_agent to avoid false positives)
+      if (excludePattern.test(titleText)) {
+        toDelete.push(notice.id);
+        details.push({ id: notice.id, title: notice.title, reason: 'exclude_keyword' });
+        continue;
+      }
+      // Positive keyword check on title only
+      if (!positivePattern.test(titleText)) {
+        toDelete.push(notice.id);
+        details.push({ id: notice.id, title: notice.title, reason: 'no_positive_keyword' });
+      }
+    }
+
+    if (toDelete.length === 0) {
+      return res.json({ success: true, data: { deleted: 0, message: 'nothing to clean' } });
+    }
+
+    const { error: delMatchErr } = await supabaseAdmin
+      .from('match_result')
+      .delete()
+      .in('notice_id', toDelete);
+    if (delMatchErr) console.error('[cleanup] match_result delete error:', delMatchErr.message);
+
+    const { error: delErr } = await supabaseAdmin
+      .from('bidding_notice')
+      .delete()
+      .in('id', toDelete);
+    if (delErr) throw delErr;
+
+    console.log('[cleanup] Deleted ' + toDelete.length + ' irrelevant notices');
+    res.json({ success: true, data: { deleted: toDelete.length, details } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

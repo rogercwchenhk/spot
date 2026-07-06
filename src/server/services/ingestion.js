@@ -183,15 +183,16 @@ function filterByKeywords(notices, keywordGroups, excludeKeywords, targetProvinc
   return notices.filter(notice => {
     const text = [notice.title, notice.tenderee, notice.tender_agent].filter(Boolean).join(' ');
 
-    // 排除词过滤
-    if (excludePattern && excludePattern.test(text)) return false;
+    // 排除词过滤（仅检查标题，避免采购方公司名误伤）
+    const titleText = notice.title || '';
+    if (excludePattern && excludePattern.test(titleText)) return false;
 
-    // 省份过滤：如果指定了目标省份，只保留匹配的
+    // 省份过滤：只保留目标省份的公告（严格模式，"全国"不再放行）
     if (targetProvince) {
       const region = (notice.city || notice.region_scope || '').toLowerCase();
       const province = targetProvince.toLowerCase();
-      // 包含目标省份 或 标记为"全国"的保留
-      if (!region.includes(province) && region !== '全国' && region !== '') return false;
+      // 城市或省份必须包含目标省份
+      if (!region.includes(province)) return false;
     }
 
     // 关键词过滤：至少匹配一组的至少一个子组（子组内 AND，组间 OR）
@@ -201,7 +202,19 @@ function filterByKeywords(notices, keywordGroups, excludeKeywords, targetProvinc
       );
     }
 
-    // 没有关键词配置时全部保留
+    // 正向关键词兜底（检查标题，必须包含至少一个 IT 核心词才放行）
+    const POSITIVE_IT_KEYWORDS = [
+      '运维', '维保', 'IT', '信息化', '信息技术', '服务器', '存储', '网络', '数据库', '小型机', '驻场', '机房', '数据中心',
+      '系统集成', '弱电', '安防', '监控', '视频会议', '通信', '云计算', '虚拟化', '中间件',
+      '安全服务', '信息安全', '网络安全', '网安', '数据安全', '应用系统', '信息中心', '技术支撑', '技术支持',
+      '桌面运维', '桌面外包', '网络运维', '系统运维', '基础设施', '计算机', '软件', '硬件', '数据', '数字化',
+      '交换机', '路由器', '防火墙', 'UPS', '备份', '容灾', '灾备', '政务', '电子政务',
+      'IBM', 'Oracle', 'HP', 'HPE', 'Dell', '华为', '华三', 'H3C', '锐捷', '深信服', '天融信',
+      'Power', 'AIX', 'Linux', 'Windows Server', 'VMware', 'Vmware', 'ITO',
+    ];
+    const positivePattern = new RegExp(POSITIVE_IT_KEYWORDS.join('|'), 'i');
+    if (!positivePattern.test(titleText)) return false;
+
     return true;
   });
 }

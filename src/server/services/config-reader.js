@@ -44,7 +44,13 @@ async function loadConfig() {
  */
 async function getConfig(key, fallback = null) {
   const cfg = await loadConfig();
-  return cfg[key] !== undefined ? cfg[key] : fallback;
+  if (cfg[key] === undefined) return fallback;
+  // 尝试 JSON 解析（数据库中可能是 '"value"' 格式）
+  const raw = cfg[key];
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw); } catch (_) { return raw; }
+  }
+  return raw;
 }
 
 /**
