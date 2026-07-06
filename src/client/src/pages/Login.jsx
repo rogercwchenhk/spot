@@ -16,7 +16,7 @@ export default function Login() {
     setLoading(true);
     try {
       await login(email, password);
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       setError(err.message || '登录失败');
     } finally {
@@ -25,38 +25,41 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold tracking-tight">客户雷达</h1>
-          <p className="text-sm text-gray-500 mt-1">广东励康标讯情报系统</p>
+          <div className="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center mx-auto mb-4">
+            <span className="text-white text-lg font-bold">R</span>
+          </div>
+          <h1 className="text-xl font-semibold tracking-tight text-slate-800">客户雷达</h1>
+          <p className="text-sm text-slate-400 mt-1">广东励康标讯情报系统</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-slate-200/80 p-6 space-y-4">
           {error && (
-            <div className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</div>
+            <div className="text-sm text-rose-600 bg-rose-50 rounded-lg px-3 py-2 border border-rose-200/60">{error}</div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">邮箱</label>
             <input
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors"
               placeholder="your@email.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">密码</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">密码</label>
             <input
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors"
               placeholder="••••••"
             />
           </div>
@@ -64,11 +67,13 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gray-900 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-gray-800 disabled:opacity-50 transition-colors"
+            className="w-full bg-indigo-600 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm shadow-indigo-600/20"
           >
             {loading ? '登录中...' : '登录'}
           </button>
         </form>
+
+        <p className="text-center text-xs text-slate-300 mt-6">广东励康信息技术有限公司</p>
       </div>
     </div>
   );

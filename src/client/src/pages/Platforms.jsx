@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { radarApi } from '../lib/api';
+import { ExternalLink } from 'lucide-react';
+import { cn } from '../lib/utils';
 
 export default function Platforms() {
   const [platforms, setPlatforms] = useState([]);
@@ -14,35 +16,48 @@ export default function Platforms() {
 
   return (
     <div>
-      <h2 className="text-lg font-semibold mb-4">平台管理</h2>
+      <div className="mb-5">
+        <h2 className="text-lg font-semibold text-slate-800">平台管理</h2>
+        <p className="text-sm text-slate-400 mt-0.5">已接入的招标数据源平台</p>
+      </div>
 
       {loading ? (
-        <div className="text-center text-gray-500 py-8">加载中...</div>
+        <div className="bg-white rounded-xl border border-slate-200/80 p-8">
+          <div className="text-center text-slate-400">加载中...</div>
+        </div>
       ) : platforms.length === 0 ? (
-        <div className="text-center text-gray-500 py-8">暂无平台数据</div>
+        <div className="bg-white rounded-xl border border-slate-200/80 p-8">
+          <div className="text-center text-slate-400">暂无平台数据</div>
+        </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="text-left px-4 py-2.5 font-medium text-gray-600">平台名称</th>
-                <th className="text-left px-4 py-2.5 font-medium text-gray-600">URL</th>
-                <th className="text-left px-4 py-2.5 font-medium text-gray-600">类型</th>
-                <th className="text-left px-4 py-2.5 font-medium text-gray-600">反爬等级</th>
-                <th className="text-left px-4 py-2.5 font-medium text-gray-600">状态</th>
+            <thead>
+              <tr className="border-b border-slate-100">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">平台名称</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">URL</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">类型</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">反爬等级</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">状态</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-slate-100">
               {platforms.map(p => (
-                <tr key={p.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-2.5 font-medium">{p.platform_name}</td>
-                  <td className="px-4 py-2.5 text-xs text-blue-600 truncate max-w-[200px]">
-                    <a href={p.base_url} target="_blank" rel="noopener noreferrer">{p.base_url}</a>
+                <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="px-4 py-3 font-medium text-slate-800">{p.platform_name}</td>
+                  <td className="px-4 py-3">
+                    <a href={p.base_url} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 max-w-[200px] truncate transition-colors">
+                      {p.base_url}
+                    </a>
                   </td>
-                  <td className="px-4 py-2.5">{p.platform_type}</td>
-                  <td className="px-4 py-2.5">{p.anti_bot_level || '-'}</td>
-                  <td className="px-4 py-2.5">
-                    <span className={p.is_active ? 'badge-active text-xs px-2 py-0.5 rounded-full' : 'badge-expired text-xs px-2 py-0.5 rounded-full'}>
+                  <td className="px-4 py-3 text-slate-600">{p.platform_type}</td>
+                  <td className="px-4 py-3 text-slate-600">{p.anti_bot_level || '-'}</td>
+                  <td className="px-4 py-3">
+                    <span className={cn(
+                      'text-xs font-medium px-2.5 py-1 rounded-md',
+                      p.is_active ? 'badge-active' : 'badge-expired'
+                    )}>
                       {p.is_active ? '已接入' : '未启用'}
                     </span>
                   </td>

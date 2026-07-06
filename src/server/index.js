@@ -110,3 +110,5 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (reason) => {
   console.error('[fatal] Unhandled rejection:', reason);
 });
+const dashboardRouter = require('./routes/dashboard');
+app.use('/api/dashboard', dashboardRouter);

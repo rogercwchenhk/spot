@@ -91,7 +91,7 @@ function KeywordStrategySection() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="text-center text-gray-500 py-4">加载中...</div>;
+  if (loading) return <div className="text-center text-slate-500 py-4">加载中...</div>;
   if (error) return <div className="text-red-500 text-sm py-4">加载失败: {error}</div>;
   if (!data) return null;
 
@@ -117,15 +117,15 @@ function KeywordStrategySection() {
     <div className="space-y-4">
       {/* 总览卡片 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-gray-50 rounded-lg p-3 text-center">
-          <div className="text-2xl font-bold text-gray-900">{totalNotices}</div>
-          <div className="text-xs text-gray-500">总入库</div>
+        <div className="bg-slate-50 rounded-lg p-3 text-center">
+          <div className="text-2xl font-bold text-slate-900">{totalNotices}</div>
+          <div className="text-xs text-slate-500">总入库</div>
         </div>
         <div className="bg-green-50 rounded-lg p-3 text-center">
           <div className="text-2xl font-bold text-green-700">{totalStrong}</div>
           <div className="text-xs text-green-600">强推</div>
         </div>
-        <div className="bg-yellow-50 rounded-lg p-3 text-center">
+        <div className="bg-indigo-50 rounded-lg p-3 text-center">
           <div className="text-2xl font-bold text-yellow-700">{totalYes}</div>
           <div className="text-xs text-yellow-600">可投</div>
         </div>
@@ -137,7 +137,7 @@ function KeywordStrategySection() {
 
       {/* 关键词分组 */}
       <div className="space-y-2">
-        <h4 className="text-xs font-semibold text-gray-700 flex items-center gap-1">
+        <h4 className="text-xs font-semibold text-slate-700 flex items-center gap-1">
           <Target size={14} /> 关键词分组 ({keyword_groups.length} 组)
         </h4>
         {keyword_groups.map((group, i) => {
@@ -148,11 +148,11 @@ function KeywordStrategySection() {
             ? st.effective_rate : null;
 
           return (
-            <div key={i} className="border border-gray-200 rounded-lg p-3">
+            <div key={i} className="border border-slate-200/80 rounded-lg p-3">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-sm text-gray-900">{group.name}</span>
-                  <span className="text-xs text-gray-400">{group.groups?.length || 0} 个组合</span>
+                  <span className="font-medium text-sm text-slate-900">{group.name}</span>
+                  <span className="text-xs text-slate-400">{group.groups?.length || 0} 个组合</span>
                 </div>
                 <div className="flex items-center gap-2">
                   {effectiveRate !== null && (
@@ -175,7 +175,7 @@ function KeywordStrategySection() {
 
               {/* 统计行 */}
               {st.total_notices > 0 && (
-                <div className="flex gap-3 text-xs text-gray-500 mb-2">
+                <div className="flex gap-3 text-xs text-slate-500 mb-2">
                   <span>入库 {st.total_notices}</span>
                   <span className="text-green-600">strong {st.strong_count || 0}</span>
                   <span className="text-yellow-600">yes {st.yes_count || 0}</span>
@@ -192,9 +192,9 @@ function KeywordStrategySection() {
               {/* 关键词列表 */}
               <div className="flex flex-wrap gap-1">
                 {group.groups?.map((g, j) => (
-                  <span key={j} className="inline-flex items-center bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded">
+                  <span key={j} className="inline-flex items-center bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded">
                     {g.keywords?.join(' + ')}
-                    <span className="ml-1 text-gray-400">[{g.match_modes?.join(',')}]</span>
+                    <span className="ml-1 text-slate-400">[{g.match_modes?.join(',')}]</span>
                   </span>
                 ))}
               </div>
@@ -205,7 +205,7 @@ function KeywordStrategySection() {
 
       {/* 排除词 */}
       <div>
-        <h4 className="text-xs font-semibold text-gray-700 flex items-center gap-1 mb-2">
+        <h4 className="text-xs font-semibold text-slate-700 flex items-center gap-1 mb-2">
           <Tag size={14} /> 排除词 ({exclude_keywords.length} 个)
         </h4>
         <div className="flex flex-wrap gap-1">
@@ -218,11 +218,11 @@ function KeywordStrategySection() {
       </div>
 
       {/* 演进历史提示 */}
-      <div className="bg-gray-50 rounded-lg p-3">
-        <h4 className="text-xs font-semibold text-gray-700 flex items-center gap-1 mb-1">
+      <div className="bg-slate-50 rounded-lg p-3">
+        <h4 className="text-xs font-semibold text-slate-700 flex items-center gap-1 mb-1">
           <TrendingUp size={14} /> 演进历史
         </h4>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-slate-500">
           关键词策略 v2 (2026-07-04): 从 8 组基础关键词升级为 6 大分组 39 个组合，使用高级查询 + match_modes 精准匹配。
           自进化系统已启用：每周一自动推送效果报告，可执行 cr admin keyword:tune 查看调优建议。
         </p>
@@ -266,7 +266,7 @@ export default function Settings() {
 
   useEffect(() => { fetchConfig(); }, []);
 
-  if (!isAdmin) return <div className="text-center text-gray-500 py-8">需要管理员权限</div>;
+  if (!isAdmin) return <div className="text-center text-slate-500 py-8">需要管理员权限</div>;
 
   const getValue = (key) => edited[key] !== undefined ? edited[key] : (config[key]?.value ?? '');
 
@@ -334,7 +334,7 @@ export default function Settings() {
 
     return (
       <div key={key}>
-        <label className="block text-xs text-gray-500 mb-1">{label}</label>
+        <label className="block text-xs text-slate-500 mb-1">{label}</label>
         {type === 'toggle' ? (
           <div className="flex items-center gap-3">
             <button
@@ -343,21 +343,21 @@ export default function Settings() {
                 setEdited(prev => ({ ...prev, [key]: next })); setEditingKey(key);
               }}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                val === true || val === 'true' ? 'bg-green-500' : 'bg-gray-300'
+                val === true || val === 'true' ? 'bg-green-500' : 'bg-slate-300'
               }`}
             >
               <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
                 val === true || val === 'true' ? 'translate-x-6' : 'translate-x-1'
               }`} />
             </button>
-            <span className="text-xs text-gray-500">{val === true || val === 'true' ? '开启' : '关闭'}</span>
+            <span className="text-xs text-slate-500">{val === true || val === 'true' ? '开启' : '关闭'}</span>
             {isModified && (
               <>
                 <button onClick={() => handleSave(key)} disabled={saving}
                   className="inline-flex items-center gap-1 text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700">
                   <Save size={12} /> 保存
                 </button>
-                <button onClick={() => cancelEdit(key)} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
+                <button onClick={() => cancelEdit(key)} className="text-slate-400 hover:text-slate-600"><X size={14} /></button>
               </>
             )}
           </div>
@@ -368,28 +368,28 @@ export default function Settings() {
                 value={typeof edited[key] === 'string' ? edited[key] : JSON.stringify(edited[key], null, 2)}
                 onChange={e => setEdited(prev => ({ ...prev, [key]: e.target.value }))}
                 rows={4} autoFocus
-                className="flex-1 border border-yellow-400 bg-yellow-50 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-gray-900 resize-y"
+                className="flex-1 border border-indigo-400 bg-indigo-50 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 resize-y"
               />
             ) : (
               <input type={type} value={edited[key] ?? ''}
                 onChange={e => setEdited(prev => ({ ...prev, [key]: e.target.value }))}
                 autoFocus
-                className="flex-1 border border-yellow-400 bg-yellow-50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                className="flex-1 border border-indigo-400 bg-indigo-50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
               />
             )}
             <button onClick={() => handleSave(key)} disabled={saving}
               className="self-end inline-flex items-center gap-1 text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 shrink-0">
               <Save size={12} /> 保存
             </button>
-            <button onClick={() => cancelEdit(key)} className="self-end text-gray-400 hover:text-gray-600 shrink-0"><X size={14} /></button>
+            <button onClick={() => cancelEdit(key)} className="self-end text-slate-400 hover:text-slate-600 shrink-0"><X size={14} /></button>
           </div>
         ) : (
           <div className="flex gap-2">
-            <div className={`flex-1 border rounded-lg px-3 py-2 text-sm ${type === 'password' ? 'font-mono tracking-wider' : ''} bg-gray-50 text-gray-700 truncate`}>
+            <div className={`flex-1 border rounded-lg px-3 py-2 text-sm ${type === 'password' ? 'font-mono tracking-wider' : ''} bg-slate-50 text-slate-700 truncate`}>
               {type === 'password' && val ? '••••••••' : (typeof val === 'object' ? JSON.stringify(val, null, 2) : String(val || ''))}
             </div>
             <button onClick={() => startEdit(key)}
-              className="self-end inline-flex items-center gap-1 text-xs border border-gray-200 text-gray-600 px-2 py-1 rounded hover:bg-gray-100 shrink-0">
+              className="self-end inline-flex items-center gap-1 text-xs border border-slate-200/80 text-slate-600 px-2 py-1 rounded hover:bg-slate-100 shrink-0">
               <Pencil size={12} /> 编辑
             </button>
           </div>
@@ -400,43 +400,43 @@ export default function Settings() {
 
   // ── 时间选择器组件 ────────────────────────────
   const renderTimePicker = ({ title, desc, times, setTimes, editing, setEditing, onSave }) => (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
+    <div className="bg-white rounded-xl border border-slate-200/80 p-5">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+        <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
         {!editing && (
           <button onClick={() => setEditing(true)}
-            className="inline-flex items-center gap-1 text-xs border border-gray-200 text-gray-600 px-2 py-1 rounded hover:bg-gray-100">
+            className="inline-flex items-center gap-1 text-xs border border-slate-200/80 text-slate-600 px-2 py-1 rounded hover:bg-slate-100">
             <Pencil size={12} /> 编辑
           </button>
         )}
       </div>
-      <p className="text-xs text-gray-400 mb-3">{desc}</p>
+      <p className="text-xs text-slate-400 mb-3">{desc}</p>
 
       {editing ? (
         <>
           <div className="flex flex-wrap gap-2 mb-3">
             {times.map((t, i) => (
-              <div key={i} className="inline-flex items-center gap-1 bg-yellow-50 border border-yellow-300 rounded-lg px-2 py-1">
+              <div key={i} className="inline-flex items-center gap-1 bg-indigo-50 border border-yellow-300 rounded-lg px-2 py-1">
                 <input type="time" value={t}
                   onChange={e => { const next = [...times]; next[i] = e.target.value; setTimes(next); }}
                   className="text-sm border-none bg-transparent focus:outline-none"
                 />
                 <button onClick={() => setTimes(times.filter((_, j) => j !== i))}
-                  className="text-gray-400 hover:text-red-500"><Trash2 size={12} /></button>
+                  className="text-slate-400 hover:text-red-500"><Trash2 size={12} /></button>
               </div>
             ))}
             <button onClick={() => setTimes([...times, '12:00'])}
-              className="inline-flex items-center gap-1 text-xs text-gray-600 border border-dashed border-gray-300 px-2 py-1 rounded hover:bg-gray-50">
+              className="inline-flex items-center gap-1 text-xs text-slate-600 border border-dashed border-slate-200 px-2 py-1 rounded hover:bg-slate-50">
               <Plus size={12} /> 添加
             </button>
           </div>
-          <div className="flex gap-2 pt-3 border-t border-gray-100">
+          <div className="flex gap-2 pt-3 border-t border-slate-100">
             <button onClick={onSave} disabled={saving}
               className="inline-flex items-center gap-1 text-sm bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50">
               <Save size={14} /> 保存
             </button>
             <button onClick={() => { setEditing(false); fetchConfig(); }}
-              className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 px-4 py-2">
+              className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 px-4 py-2">
               <X size={14} /> 取消
             </button>
           </div>
@@ -444,7 +444,7 @@ export default function Settings() {
       ) : (
         <div className="flex flex-wrap gap-2">
           {times.map((t, i) => (
-            <span key={i} className="inline-flex items-center bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full">{t}</span>
+            <span key={i} className="inline-flex items-center bg-slate-100 text-slate-700 text-sm px-3 py-1 rounded-full">{t}</span>
           ))}
         </div>
       )}
@@ -455,7 +455,7 @@ export default function Settings() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-lg font-semibold">系统设置</h2>
-        <button onClick={fetchConfig} className="text-gray-500 hover:text-gray-700" title="刷新">
+        <button onClick={fetchConfig} className="text-slate-500 hover:text-slate-700" title="刷新">
           <RefreshCw size={16} />
         </button>
       </div>
@@ -463,19 +463,19 @@ export default function Settings() {
       {msg && <div className="mb-4 text-sm bg-green-50 text-green-700 rounded-lg px-3 py-2">{msg}</div>}
 
       {loading ? (
-        <div className="text-center text-gray-500 py-8">加载中...</div>
+        <div className="text-center text-slate-500 py-8">加载中...</div>
       ) : (
         <div className="space-y-6">
           {SECTIONS.map(section => (
-            <div key={section.title} className="bg-white rounded-xl border border-gray-200 p-5">
+            <div key={section.title} className="bg-white rounded-xl border border-slate-200/80 p-5">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-gray-900">{section.title}</h3>
+                <h3 className="text-sm font-semibold text-slate-900">{section.title}</h3>
                 <button
                   onClick={() => handleSaveAll(section.fields)}
                   disabled={saving || !section.fields.some(f => edited[f.key] !== undefined)}
                   className={`inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg ${
                     section.fields.some(f => edited[f.key] !== undefined)
-                      ? 'bg-gray-900 text-white hover:bg-gray-800' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                   }`}>
                   <Save size={12} /> 保存全部
                 </button>
@@ -497,21 +497,21 @@ export default function Settings() {
           })}
 
           {/* 关键词策略 */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="bg-white rounded-xl border border-slate-200/80 p-5">
             <div className="flex items-center gap-2 mb-4">
-              <Settings2 size={16} className="text-gray-700" />
-              <h3 className="text-sm font-semibold text-gray-900">关键词策略</h3>
+              <Settings2 size={16} className="text-slate-700" />
+              <h3 className="text-sm font-semibold text-slate-900">关键词策略</h3>
             </div>
             <KeywordStrategySection />
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">系统信息</h3>
+          <div className="bg-white rounded-xl border border-slate-200/80 p-5">
+            <h3 className="text-sm font-semibold text-slate-900 mb-3">系统信息</h3>
             <div className="grid grid-cols-2 gap-3 text-sm">
-              <div><span className="text-gray-500">版本：</span>1.0.0</div>
-              <div><span className="text-gray-500">数据源：</span>{config['datasource.name']?.value || '知了标讯'}</div>
-              <div><span className="text-gray-500">AI 模型：</span>{config['llm.model']?.value || 'mimo-v2.5-pro'}</div>
-              <div><span className="text-gray-500">数据库：</span>Supabase (PostgreSQL)</div>
+              <div><span className="text-slate-500">版本：</span>1.0.0</div>
+              <div><span className="text-slate-500">数据源：</span>{config['datasource.name']?.value || '知了标讯'}</div>
+              <div><span className="text-slate-500">AI 模型：</span>{config['llm.model']?.value || 'mimo-v2.5-pro'}</div>
+              <div><span className="text-slate-500">数据库：</span>Supabase (PostgreSQL)</div>
             </div>
           </div>
         </div>

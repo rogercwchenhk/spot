@@ -6,7 +6,7 @@ const express = require('express');
 const router = express.Router();
 const { supabaseAdmin } = require('../db');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
-const { clearCache } = require('./config-reader');
+const { clearCache } = require('../services/config-reader');
 const ingestion = require('../services/ingestion');
 const scrapling = require('../services/scrapling-client');
 
