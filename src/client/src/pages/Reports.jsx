@@ -86,7 +86,7 @@ export default function Reports() {
       </div>
 
       {/* 总览数字 */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
         <div className="bg-white rounded-xl border border-slate-200/80 p-4 text-center">
           <p className="text-2xl font-bold text-slate-900">{totalInRange}</p>
           <p className="text-xs text-slate-400 mt-0.5">标讯总量</p>

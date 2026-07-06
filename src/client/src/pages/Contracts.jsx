@@ -177,8 +177,8 @@ export default function Contracts() {
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="bg-white rounded-xl border border-slate-200/80 overflow-x-auto">
+            <table className="w-full text-sm min-w-[720px]">
               <thead>
                 <tr className="border-b border-slate-100">
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">项目名称</th>
