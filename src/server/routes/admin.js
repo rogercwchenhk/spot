@@ -657,3 +657,20 @@ router.post('/qual-warning/push', async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// GET /api/admin/notices/scoring-list - 查看已提取的评分标准列表
+router.get('/notices/scoring-list', async (req, res) => {
+  try {
+    const { limit = 20 } = req.query;
+    const { data, error } = await supabaseAdmin
+      .from('notice_scoring')
+      .select('id, notice_id, total_score, summary, created_at')
+      .order('created_at', { ascending: false })
+      .limit(Number(limit));
+
+    if (error) throw error;
+    res.json({ success: true, data: data || [] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});

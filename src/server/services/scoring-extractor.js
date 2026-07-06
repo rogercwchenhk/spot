@@ -155,36 +155,51 @@ async function extractNoticeScoring(noticeId) {
 
 /**
  * 批量提取
+ * 找有已下载文件但没有评分数据的 tender 标讯
  */
 async function extractBatch(limit = 20) {
-  console.log(`[scoring] 批量 ${limit} 条`);
+  console.log(`[scoring] 批量提取，上限 ${limit} 条`);
 
-  // 找有已下载文件但没有评分数据的标讯
-  // 只处理 tender 类型的标讯
-  const { data: tenderNotices } = await supabaseAdmin
-    .from('bidding_notice')
-    .select('id')
-    .eq('notice_type', 'tender')
-    .eq('doc_access_type', 'free');
-  const tenderIds = new Set((tenderNotices || []).map(n => n.id));
-
-  const { data: notices } = await supabaseAdmin.rpc
-    ? await supabaseAdmin
-        .from('bid_document')
-        .select('notice_id')
-        .eq('download_status', 'completed')
-        .in('file_type', ['pdf', 'docx', 'doc'])
-        .limit(limit * 3)
-    : { data: [] };
-
-  // 去重并排除已有评分的
+  // 1. 查已有评分数据的 notice_id
   const { data: scored } = await supabaseAdmin.from('notice_scoring').select('notice_id');
   const scoredIds = new Set((scored || []).map(s => s.notice_id));
-  const noticeIds = [...new Set((notices || []).map(n => n.notice_id))]
-    .filter(id => !scoredIds.has(id) && tenderIds.has(id))
-    .slice(0, limit);
 
-  if (noticeIds.length === 0) return { success: 0, failed: 0, skipped: 0, total: 0 };
+  // 2. 查有已下载文件的 notice_id（PDF/DOCX/DOC）
+  const { data: docs } = await supabaseAdmin
+    .from('bid_document')
+    .select('notice_id')
+    .eq('download_status', 'completed')
+    .in('file_type', ['pdf', 'docx', 'doc']);
+
+  if (!docs?.length) {
+    console.log('  无可解析的已下载文件');
+    return { success: 0, failed: 0, skipped: 0, total: 0 };
+  }
+
+  // 3. 去重，排除已有评分的
+  const candidateIds = [...new Set(docs.map(d => d.notice_id))]
+    .filter(id => !scoredIds.has(id));
+
+  if (candidateIds.length === 0) {
+    console.log('  所有已下载文件均已提取过评分');
+    return { success: 0, failed: 0, skipped: 0, total: 0 };
+  }
+
+  // 4. 进一步筛选：只处理 tender 类型且 doc_access_type = free 的
+  const { data: notices } = await supabaseAdmin
+    .from('bidding_notice')
+    .select('id')
+    .in('id', candidateIds)
+    .eq('notice_type', 'tender')
+    .eq('doc_access_type', 'free')
+    .limit(limit);
+
+  const noticeIds = (notices || []).map(n => n.id);
+
+  if (noticeIds.length === 0) {
+    console.log('  无符合条件的 tender 标讯（type=tender, doc_access=free）');
+    return { success: 0, failed: 0, skipped: 0, total: 0 };
+  }
 
   console.log(`  待处理: ${noticeIds.length} 条`);
 
@@ -195,10 +210,15 @@ async function extractBatch(limit = 20) {
       if (r.status === 'success') success++;
       else if (r.status === 'skip') skipped++;
       else failed++;
-      await new Promise(r => setTimeout(r, 2000));
-    } catch (e) { failed++; }
+      // AI 限流间隔
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    } catch (e) {
+      console.error(`  #${id} 异常: ${e.message}`);
+      failed++;
+    }
   }
 
+  console.log(`[scoring] 完成: ${success} 成功, ${skipped} 跳过, ${failed} 失败`);
   return { success, failed, skipped, total: noticeIds.length };
 }
 

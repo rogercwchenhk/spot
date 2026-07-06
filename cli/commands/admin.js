@@ -247,6 +247,33 @@ function register(program, api) {
         }
       } catch (e) { error(e.message, program.opts().json); }
     });
+
+  // scoring-list — 查看已提取的评分标准
+  program
+    .command('scoring-list')
+    .description('查看已提取的评分标准列表')
+    .option('--limit <n>', '返回条数', '20')
+    .action(async (opts) => {
+      try {
+        const res = await api.get(`/api/admin/notices/scoring-list?limit=${opts.limit}`);
+        const items = res.data || res || [];
+
+        if (program.opts().json) {
+          success(items, true);
+        } else {
+          if (items.length === 0) {
+            console.log('\n  暂无评分标准数据\n');
+            return;
+          }
+          table(items, [
+            { key: 'notice_id', label: '标讯ID', maxWidth: 10 },
+            { key: 'total_score', label: '满分', maxWidth: 8 },
+            { key: 'summary', label: '摘要', maxWidth: 50 },
+            { key: 'created_at', label: '提取时间', maxWidth: 20 },
+          ]);
+        }
+      } catch (e) { error(e.message, program.opts().json); }
+    });
 }
 
 module.exports = { register };
