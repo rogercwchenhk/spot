@@ -204,7 +204,7 @@ export default function Dashboard() {
       </div>
 
       {/* 快捷入口 */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <Link to="/search" className="bg-white rounded-xl border border-slate-200/80 p-4 flex items-center gap-3 hover:border-indigo-300 hover:shadow-sm transition-all group">
           <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
             <FileText size={18} />
