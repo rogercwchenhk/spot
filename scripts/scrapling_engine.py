@@ -31,15 +31,15 @@ def get_fetcher(strategy):
     """根据 spider_strategy 返回对应的 Scrapling fetcher 函数"""
     if strategy in ('requests_plain', 'api_json'):
         from scrapling.fetchers import Fetcher
-        return lambda url: Fetcher.get(url, stealthy_headers=True, timeout=30)
+        return lambda url: Fetcher.get(url, stealthy_headers=True, timeout=30, verify=False)
 
     elif strategy == 'requests_with_ja3':
         from scrapling.fetchers import Fetcher
-        return lambda url: Fetcher.get(url, impersonate='chrome', stealthy_headers=True, timeout=30)
+        return lambda url: Fetcher.get(url, impersonate='chrome', stealthy_headers=True, timeout=30, verify=False)
 
     elif strategy == 'requests_post_xml':
         from scrapling.fetchers import Fetcher
-        return lambda url, body=None: Fetcher.post(url, data=body, impersonate='chrome', timeout=30)
+        return lambda url, body=None: Fetcher.post(url, data=body, impersonate='chrome', timeout=30, verify=False)
 
     elif strategy == 'playwright_headless':
         from scrapling.fetchers import DynamicFetcher
@@ -52,7 +52,7 @@ def get_fetcher(strategy):
     else:
         log(f"Unknown strategy '{strategy}', falling back to requests_plain")
         from scrapling.fetchers import Fetcher
-        return lambda url: Fetcher.get(url, stealthy_headers=True, timeout=30)
+        return lambda url: Fetcher.get(url, stealthy_headers=True, timeout=30, verify=False)
 
 
 def classify_notice_type(title, keywords_map):
