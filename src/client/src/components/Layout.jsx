@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import {
   LayoutDashboard, ClipboardList, Search, Award, FileText, BarChart3,
-  Globe, Settings, LogOut, Menu, X, User,
+  Globe, Settings, LogOut, Menu, X, User, MoreHorizontal, WifiOff,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import NotificationBell from './NotificationBell';
@@ -19,16 +20,33 @@ const navItems = [
   { to: '/settings', icon: Settings, label: '设置', adminOnly: true },
 ];
 
+const MOBILE_TAB_COUNT = 4; // first 4 + "更多"
+
 export default function Layout() {
   const { user, isAdmin, logout } = useAuth();
+  const online = useOnlineStatus();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const visibleItems = navItems.filter(item => !item.adminOnly || isAdmin);
+  const mobileTabs = visibleItems.slice(0, MOBILE_TAB_COUNT);
+  const moreItems = visibleItems.slice(MOBILE_TAB_COUNT);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
+      {/* 离线提示条 */}
+      {!online && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500 text-white text-xs font-medium text-center py-1.5 flex items-center justify-center gap-1.5">
+          <WifiOff size={12} />
+          当前处于离线模式
+        </div>
+      )}
+
       {/* 顶栏 */}
-      <header className="h-14 bg-white border-b border-slate-200/80 flex items-center justify-between px-4 sticky top-0 z-30 backdrop-blur-sm bg-white/95">
+      <header className={cn(
+        'h-14 bg-white border-b border-slate-200/80 flex items-center justify-between px-4 sticky z-30 backdrop-blur-sm bg-white/95',
+        !online ? 'top-6' : 'top-0'
+      )}>
         <div className="flex items-center gap-3">
           <button className="lg:hidden text-slate-500 hover:text-slate-700" onClick={() => setSidebarOpen(!sidebarOpen)}>
             {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
@@ -63,10 +81,12 @@ export default function Layout() {
       <div className="flex flex-1">
         {/* 侧边栏 (桌面) */}
         <aside className={cn(
-          'fixed lg:sticky top-14 left-0 z-20 w-56 h-[calc(100vh-3.5rem)] bg-white border-r border-slate-200/80',
+          'fixed lg:sticky left-0 z-20 w-56 bg-white border-r border-slate-200/80',
           'transition-transform lg:translate-x-0',
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        )}>
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+          !online ? 'top-[5.5rem]' : 'top-14',
+          'h-[calc(100vh-var(--header-h))]'
+        )} style={{ '--header-h': !online ? '5.5rem' : '3.5rem' }}>
           <nav className="flex flex-col gap-0.5 p-3 pt-4">
             {visibleItems.map(item => (
               <NavLink
@@ -94,14 +114,17 @@ export default function Layout() {
         )}
 
         {/* 主内容区 */}
-        <main className="flex-1 p-4 lg:p-6 max-w-7xl w-full">
+        <main className={cn('flex-1 p-4 lg:p-6 max-w-7xl w-full', !online && 'mt-6')}>
           <Outlet />
         </main>
       </div>
 
       {/* 底部 Tab 栏 (移动端) */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-slate-200/80 flex lg:hidden z-30">
-        {visibleItems.slice(0, 5).map(item => (
+      <nav className={cn(
+        'fixed left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-slate-200/80 flex lg:hidden z-30',
+        !online ? 'bottom-0' : 'bottom-0'
+      )}>
+        {mobileTabs.map(item => (
           <NavLink
             key={item.to}
             to={item.to}
@@ -115,7 +138,43 @@ export default function Layout() {
             <span className="mt-0.5">{item.label}</span>
           </NavLink>
         ))}
+        {/* 更多按钮 */}
+        {moreItems.length > 0 && (
+          <button
+            onClick={() => setMoreOpen(!moreOpen)}
+            className="flex-1 flex flex-col items-center py-2.5 text-xs text-slate-400 transition-colors"
+          >
+            <MoreHorizontal size={20} />
+            <span className="mt-0.5">更多</span>
+          </button>
+        )}
       </nav>
+
+      {/* 更多菜单弹出层 */}
+      {moreOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/20 z-40 lg:hidden" onClick={() => setMoreOpen(false)} />
+          <div className="fixed bottom-14 left-0 right-0 bg-white border-t border-slate-200 z-50 lg:hidden safe-area-pb">
+            <div className="grid grid-cols-4 gap-1 p-3">
+              {moreItems.map(item => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.to === '/'}
+                  onClick={() => setMoreOpen(false)}
+                  className={({ isActive }) => cn(
+                    'flex flex-col items-center py-3 rounded-lg text-xs transition-colors',
+                    isActive ? 'text-indigo-600 bg-indigo-50 font-medium' : 'text-slate-500 hover:bg-slate-50'
+                  )}
+                >
+                  <item.icon size={20} strokeWidth={1.8} />
+                  <span className="mt-1">{item.label}</span>
+                </NavLink>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* 移动端底部留白 */}
       <div className="h-14 lg:hidden" />

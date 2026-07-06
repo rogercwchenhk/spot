@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 export default function Login() {
   const { login } = useAuth();
@@ -71,6 +71,10 @@ export default function Login() {
           >
             {loading ? '登录中...' : '登录'}
           </button>
+
+          <div className="text-center mt-3">
+            <Link to="/forgot-password" className="text-sm text-slate-400 hover:text-indigo-600 transition-colors">忘记密码？</Link>
+          </div>
         </form>
 
         <p className="text-center text-xs text-slate-300 mt-6">广东励康信息技术有限公司</p>
