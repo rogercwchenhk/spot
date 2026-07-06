@@ -41,7 +41,7 @@ export default function QualImageManager({ qualType, qualId, qualName, onOcrResu
   const toast = useToast();
   const fileInputRef = useRef(null);
   const [images, setImages] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
   const [showGuide, setShowGuide] = useState(false);
@@ -83,7 +83,11 @@ export default function QualImageManager({ qualType, qualId, qualName, onOcrResu
   };
 
   useEffect(() => {
-    if (qualId) fetchImages();
+    if (!qualId) {
+      setImages([]);
+      return;
+    }
+    fetchImages();
   }, [qualId]);
 
   const handleUpload = async (e) => {
@@ -192,7 +196,7 @@ export default function QualImageManager({ qualType, qualId, qualName, onOcrResu
           )}
           <button
             onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
+            disabled={uploading || !qualId}
             className="inline-flex items-center gap-1 text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
           >
             <Upload size={12} /> {uploading ? '上传中...' : '上传图片'}
@@ -218,6 +222,12 @@ export default function QualImageManager({ qualType, qualId, qualName, onOcrResu
       {/* 图片列表 */}
       {loading ? (
         <div className="text-center py-8 text-slate-400">加载中...</div>
+      ) : !qualId ? (
+        <div className="text-center py-8 bg-slate-50 rounded-lg border border-dashed border-slate-300">
+          <ImageIcon size={32} className="text-slate-300 mx-auto mb-2" />
+          <p className="text-sm text-slate-500">请先选择一条资质记录</p>
+          <p className="text-xs text-slate-400 mt-1">点击表格中的编辑按钮，选中记录后即可上传证书图片</p>
+        </div>
       ) : images.length === 0 ? (
         <div className="text-center py-8 bg-slate-50 rounded-lg border border-dashed border-slate-300">
           <ImageIcon size={32} className="text-slate-300 mx-auto mb-2" />
