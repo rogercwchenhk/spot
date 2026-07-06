@@ -485,6 +485,17 @@ async function notifyWeChat(notice, matchResult) {
 
 **交付物：** 销售可标注跟进状态，资质到期前30天自动推送预警到企微群
 
+**技术实现：**
+- 迁移文件：`026_notice_status_and_qual_warning.sql`
+- 后端服务：`qual-warning.js`（检查+报告生成+推送+历史记录）
+- 定时任务：每天 09:00 独立于日报推送
+- 推送去重：`qual_warning_history` 表记录每日推送，避免重复
+
+**未来扩展（B11）：**
+- 邮件通知：预警报告通过 SMTP/Resend 发送给指定人员
+- 人员配置：`system_config` 中配置接收人邮箱列表
+- 分级通知：紧急（<7天）邮件+企微双通道，一般（30天）仅企微
+
 
 ---
 
@@ -498,17 +509,19 @@ async function notifyWeChat(notice, matchResult) {
 | B2 | 通知中心 | ✅ Phase 5 |
 | B3 | 合同业绩库前端 | ✅ Phase 5 |
 | B4 | 数据看板/报表 | ✅ Phase 5 |
+| B5 | 销售标注功能 | ✅ Phase 6 |
+| B6 | 资质到期预警 | ✅ Phase 6 |
 
 **待排期:**
 
 | # | 功能 | 说明 | 依赖 |
 |---|---|---|---|
-| B5 | 销售标注功能 | ✅ Phase 6 | notice_status 字段 |
-| B6 | 资质到期预警 | ✅ Phase 6 | 企微推送集成 |
 | B7 | 评分标准批量提取 | 已下载招标文件的评分标准自动提取 | Phase 2.6 基础 |
 | B8 | 代码分割 / 懒加载 | 路由级 lazy import 减少首屏 bundle | 无 |
 | B9 | Modal 焦点陷阱 | Tab 键在弹窗内循环 | 无 |
 | B10 | 无障碍标注 | 按钮/表单/图表的 aria-label | 无 |
+| B11 | 资质预警邮件通知 | 到期预警通过邮件发送给相关人员（当前仅企微推送） | 邮件服务 + 人员配置表 |
+| B12 | 标讯状态统计 | Dashboard 按状态维度统计（跟进中/已投标/中标率等） | B5 基础 |
 
 
 ---

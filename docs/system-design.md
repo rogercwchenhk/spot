@@ -114,7 +114,9 @@
 | AI 模型 | 小米 mimo-v2.5-pro | 结构化提取能力强，中文优化好 |
 | 全文搜索 | pg_trgm + GIN 索引 | 中文模糊搜索，免装额外插件 |
 | 推送 | 企微群机器人 webhook | 零门槛，一行代码 |
+| 邮件 | SMTP (yunyou.top) / Resend | 资质预警邮件通知（B11 待实现） |
 | 定时调度 | node-cron | 轻量无依赖 |
+| 邮件服务 | nodemailer + SMTP | 资质预警邮件通知（已有基础设施） |
 
 ---
 
@@ -180,6 +182,7 @@ erDiagram
 | `industry_type` | 行业分类 | AI Pipeline 写入 |
 | `data_source` | 数据来源（`zhiliao_api`） | 入库时写入 |
 | `doc_access_type` | 招标文件获取方式 (unknown/free/paid/registration_required) | 默认 unknown，后续标记 |
+| `notice_status` | 销售标注状态 (new/following/ignored/bidding/won/lost) | 默认 new，销售手动更新 |
 
 **关键约束**：因为 `notice_content` 始终为空，AI Pipeline 不能做内容级提取（如摘要、资质要求、评分规则）。
 
@@ -324,7 +327,45 @@ CREATE TABLE system_config (
 
 通过 `cr admin config:*` 管理，修改后重启服务生效。
 
-### 3.11 bid_document — 招标文件存储表
+新增配置项（B6 资质到期预警）:
+| key | 默认值 | 说明 |
+|---|---|---|
+| `qual.warning_days` | `30` | 资质到期预警天数 |
+| `qual.warning_enabled` | `true` | 是否启用资质到期预警 |
+| `qual.warning_cron` | `0 9 * * *` | 资质预警检查 cron 表达式 |
+
+### 3.11 qual_warning_history — 资质预警推送历史表
+
+记录已推送的资质到期预警，避免同一天重复推送。
+
+```sql
+CREATE TABLE qual_warning_history (
+  id              BIGSERIAL PRIMARY KEY,
+  qual_type       VARCHAR(20) NOT NULL CHECK (qual_type IN ('company', 'personnel')),
+  qual_id         INTEGER NOT NULL,
+  qual_name       VARCHAR(200) NOT NULL,
+  expiry_date     DATE NOT NULL,
+  days_remaining  INTEGER NOT NULL,
+  pushed_at       TIMESTAMPTZ DEFAULT NOW(),
+  pushed_date     DATE DEFAULT CURRENT_DATE,
+  UNIQUE (qual_type, qual_id, pushed_date)
+);
+```
+
+**索引：**
+- `idx_qual_warning_date` — pushed_date 查询
+
+**用途：**
+- 记录每日推送的预警项，避免重复推送
+- 同一资质同一天只推送一次
+- 通过 `cr admin qual:warning --push` 手动触发时同样记录
+
+**未来扩展（B11）：**
+- 邮件通知：预警报告通过 SMTP/Resend 发送给指定人员
+- 人员配置：`system_config` 中配置接收人邮箱列表（`qual.warning_emails`）
+- 分级通知：紧急（<7天）邮件+企微双通道，一般（30天）仅企微
+
+### 3.12 bid_document — 招标文件存储表
 
 存储从原发布网站自动下载的招标文件（PDF/Word），文件本体存 Supabase Storage，元数据存本表。
 
