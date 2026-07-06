@@ -11,7 +11,7 @@ router.get('/trend', async (req, res) => {
     // 按天统计标讯入库数
     const { data: noticeRows } = await supabaseAdmin
       .from('bidding_notice')
-      .select('created_at, match_result(recommend_level)')
+      .select('created_at, city, region_scope, ai_extracted_fields, match_result(recommend_level)')
       .gte('created_at', startDate);
 
     // 按天聚合

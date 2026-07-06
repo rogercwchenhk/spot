@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { radarApi } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
@@ -88,16 +88,18 @@ export default function Contracts() {
   const [editing, setEditing] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const pageSize = 20;
+  const debounceRef = useRef(null);
+  const [debouncedKeyword, setDebouncedKeyword] = useState('');
 
   const fetchData = useCallback(() => {
     setLoading(true);
     const params = { page, pageSize };
-    if (keyword) params.keyword = keyword;
+    if (debouncedKeyword) params.keyword = debouncedKeyword;
     radarApi.get('/contracts', { params })
       .then(res => { setContracts(res.data || []); setTotal(res.total || 0); })
       .catch(err => toast.error('加载失败: ' + err.message))
       .finally(() => setLoading(false));
-  }, [page, keyword]);
+  }, [page, debouncedKeyword]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -142,7 +144,13 @@ export default function Contracts() {
       <div className="mb-4">
         <div className="relative max-w-sm">
           <SearchIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input type="text" value={keyword} onChange={e => { setKeyword(e.target.value); setPage(1); }}
+          <input type="text" value={keyword} onChange={e => {
+              const val = e.target.value;
+              setKeyword(val);
+              setPage(1);
+              clearTimeout(debounceRef.current);
+              debounceRef.current = setTimeout(() => setDebouncedKeyword(val), 300);
+            }}
             placeholder="搜索项目名/甲方..."
             className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors" />
         </div>

@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { supabase } from '../lib/supabase';
 import { useToast } from '../hooks/useToast';
 import { CheckCircle2 } from 'lucide-react';
 
@@ -13,6 +15,33 @@ export default function ResetPassword() {
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [noSession, setNoSession] = useState(false);
+
+  useEffect(() => {
+    // Supabase sets session from URL hash automatically; check after a short delay
+    const timer = setTimeout(async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data?.session) setNoSession(true);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (noSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+        <div className="w-full max-w-sm text-center">
+          <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center mx-auto mb-4">
+            <span className="text-lg font-bold">!</span>
+          </div>
+          <h2 className="text-lg font-semibold text-slate-800 mb-1">链接无效或已过期</h2>
+          <p className="text-sm text-slate-400 mb-4">请重新申请密码重置邮件</p>
+          <Link to="/forgot-password" className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+            <ArrowLeft size={14} /> 重新申请
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();

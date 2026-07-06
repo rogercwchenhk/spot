@@ -126,7 +126,7 @@ function KeywordStrategySection() {
           <div className="text-2xl font-bold text-green-700">{totalStrong}</div>
           <div className="text-xs text-green-600">强推</div>
         </div>
-        <div className="bg-indigo-50 rounded-lg p-3 text-center">
+        <div className="bg-yellow-50 rounded-lg p-3 text-center">
           <div className="text-2xl font-bold text-yellow-700">{totalYes}</div>
           <div className="text-xs text-yellow-600">可投</div>
         </div>
@@ -233,6 +233,116 @@ function KeywordStrategySection() {
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── 用户管理组件 ──────────────────────────────────────────
+function UserManagement() {
+  const toast = useToast();
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [addOpen, setAddOpen] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newRole, setNewRole] = useState('viewer');
+  const [saving, setSaving] = useState(false);
+
+  const fetchUsers = () => {
+    setLoading(true);
+    radarApi.get('/admin/users')
+      .then(res => setUsers(res.data || []))
+      .catch(err => toast.error('加载用户失败: ' + err.message))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { fetchUsers(); }, []);
+
+  const handleAdd = async () => {
+    if (!newEmail || !newPassword) { toast.error('邮箱和密码不能为空'); return; }
+    setSaving(true);
+    try {
+      await radarApi.post('/admin/users', { body: { email: newEmail, password: newPassword, role: newRole } });
+      toast.success('用户已创建');
+      setAddOpen(false); setNewEmail(''); setNewPassword(''); setNewRole('viewer');
+      fetchUsers();
+    } catch (err) { toast.error('创建失败: ' + err.message); }
+    finally { setSaving(false); }
+  };
+
+  const handleRoleChange = async (userId, role) => {
+    try {
+      await radarApi.put(`/admin/users/${userId}/role`, { body: { role } });
+      toast.success('角色已更新');
+      fetchUsers();
+    } catch (err) { toast.error('更新失败: ' + err.message); }
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200/80 p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-semibold text-slate-900">用户管理</h3>
+        <button onClick={() => setAddOpen(!addOpen)}
+          className="inline-flex items-center gap-1 text-xs border border-slate-200/80 text-slate-600 px-2 py-1 rounded hover:bg-slate-100">
+          <Plus size={12} /> 新增用户
+        </button>
+      </div>
+
+      {addOpen && (
+        <div className="mb-4 p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)}
+              placeholder="邮箱" className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" />
+            <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
+              placeholder="密码" className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" />
+            <select value={newRole} onChange={e => setNewRole(e.target.value)}
+              className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400">
+              <option value="viewer">Sales (viewer)</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={handleAdd} disabled={saving}
+              className="inline-flex items-center gap-1 text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+              <Save size={12} /> {saving ? '创建中...' : '创建'}
+            </button>
+            <button onClick={() => setAddOpen(false)} className="text-xs text-slate-500 hover:text-slate-700 px-2">取消</button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="text-center text-slate-400 py-4 text-sm">加载中...</div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100">
+                <th className="text-left px-3 py-2 text-xs font-semibold text-slate-500 uppercase">邮箱</th>
+                <th className="text-left px-3 py-2 text-xs font-semibold text-slate-500 uppercase">角色</th>
+                <th className="text-left px-3 py-2 text-xs font-semibold text-slate-500 uppercase">最后登录</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {users.map(u => (
+                <tr key={u.id} className="hover:bg-slate-50/50">
+                  <td className="px-3 py-2.5 text-slate-800">{u.email}</td>
+                  <td className="px-3 py-2.5">
+                    <select value={u.role} onChange={e => handleRoleChange(u.id, e.target.value)}
+                      className="text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+                      <option value="viewer">Sales</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </td>
+                  <td className="px-3 py-2.5 text-xs text-slate-400">
+                    {u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString('zh-CN') : '从未登录'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -505,6 +615,9 @@ export default function Settings() {
             </div>
             <KeywordStrategySection />
           </div>
+
+          {/* 用户管理 */}
+          <UserManagement />
 
           <div className="bg-white rounded-xl border border-slate-200/80 p-5">
             <h3 className="text-sm font-semibold text-slate-900 mb-3">系统信息</h3>

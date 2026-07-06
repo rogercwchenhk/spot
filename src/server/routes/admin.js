@@ -76,6 +76,10 @@ router.post('/notices/download-batch', async (req, res) => {
     const { limit = 20 } = req.body;
     const result = await downloadBatch(limit);
     res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 // POST /api/admin/notices/:id/scoring - 提取评分标准
 router.post('/notices/:id/scoring', async (req, res) => {
@@ -93,11 +97,6 @@ router.post('/notices/scoring-batch', async (req, res) => {
     const { limit = 20 } = req.body;
     const result = await extractBatch(limit);
     res.json({ success: true, data: result });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

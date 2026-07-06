@@ -38,7 +38,7 @@ router.get('/stats', async (req, res) => {
         .limit(5),
 
       // 平台数
-      supabaseAdmin.from('platform_registry').select('id', { head: true, count: 'exact' }).eq('is_active', true),
+      supabaseAdmin.from('platform_source').select('id', { head: true, count: 'exact' }).eq('is_active', true),
 
       // 资质数
       supabaseAdmin.from('company_qualification').select('id', { head: true, count: 'exact' }),

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useAuth } from '../hooks/useAuth';
 import { radarApi } from '../lib/api';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
@@ -111,6 +112,7 @@ function RecentNoticeRow({ notice }) {
 }
 
 export default function Dashboard() {
+  const { isAdmin } = useAuth();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -221,15 +223,17 @@ export default function Dashboard() {
             <p className="text-xs text-slate-400">公司 / 人员</p>
           </div>
         </Link>
-        <Link to="/platforms" className="bg-white rounded-xl border border-slate-200/80 p-4 flex items-center gap-3 hover:border-indigo-300 hover:shadow-sm transition-all group">
-          <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center group-hover:bg-amber-100 transition-colors">
-            <Globe size={18} />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-slate-800">平台管理</p>
-            <p className="text-xs text-slate-400">数据源</p>
-          </div>
-        </Link>
+        {isAdmin && (
+          <Link to="/platforms" className="bg-white rounded-xl border border-slate-200/80 p-4 flex items-center gap-3 hover:border-indigo-300 hover:shadow-sm transition-all group">
+            <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center group-hover:bg-amber-100 transition-colors">
+              <Globe size={18} />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-slate-800">平台管理</p>
+              <p className="text-xs text-slate-400">数据源</p>
+            </div>
+          </Link>
+        )}
       </div>
     </div>
   );
