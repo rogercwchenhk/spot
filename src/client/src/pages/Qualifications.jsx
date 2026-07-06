@@ -128,7 +128,7 @@ function QualFormModal({ open, onClose, onSave, fields, initial, title }) {
 
 // ── 主组件 ──────────────────────────────────────────
 export default function Qualifications() {
-  const { isAdmin } = useAuth();
+  const { canManageQualifications } = useAuth();
   const toast = useToast();
   const [tab, setTab] = useState('company');
   const [companyQuals, setCompanyQuals] = useState([]);
@@ -190,7 +190,7 @@ export default function Qualifications() {
           <h2 className="text-lg font-semibold text-slate-800">资质管理</h2>
           <p className="text-sm text-slate-400 mt-0.5">公司与人员资质证书管理</p>
         </div>
-        {isAdmin && (
+        {canManageQualifications && (
           <button onClick={handleCreate}
             className="inline-flex items-center gap-1.5 bg-indigo-600 text-white px-3.5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm shadow-indigo-600/20">
             <Plus size={14} /> 新增
@@ -227,7 +227,7 @@ export default function Qualifications() {
         <div className="bg-white rounded-xl border border-slate-200/80 p-12">
           <div className="text-center">
             <p className="text-sm text-slate-400 mb-3">暂无{tab === 'company' ? '公司' : '人员'}资质数据</p>
-            {isAdmin && (
+            {canManageQualifications && (
               <button onClick={handleCreate}
                 className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-700 font-medium">
                 <Plus size={14} /> 添加第一条
@@ -257,7 +257,7 @@ export default function Qualifications() {
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">有效期</th>
                   </>
                 )}
-                {isAdmin && <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">操作</th>}
+                {canManageQualifications && <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">操作</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -280,7 +280,7 @@ export default function Qualifications() {
                       <td className="px-4 py-3 text-xs text-slate-500">{item.expiry_date || '永久'}</td>
                     </>
                   )}
-                  {isAdmin && (
+                  {canManageQualifications && (
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       <button onClick={() => handleEdit(item)}
                         className="text-slate-400 hover:text-indigo-600 mr-2 transition-colors" title="编辑">

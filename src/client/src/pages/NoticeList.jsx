@@ -65,7 +65,7 @@ export default function NoticeList() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h2 className="text-lg font-semibold text-slate-800">标讯列表</h2>
-          <p className="text-sm text-slate-400 mt-0.5">共 {total} 条标讯</p>
+          <p className="text-xs text-slate-400 mt-0.5">共 {total} 条标讯</p>
         </div>
       </div>
 
@@ -81,7 +81,7 @@ export default function NoticeList() {
             key={tab.value}
             onClick={() => { setLevel(tab.value); setPage(1); }}
             className={cn(
-              'px-3.5 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all',
+              'px-3 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-all',
               level === tab.value
                 ? 'bg-slate-800 text-white shadow-sm'
                 : 'bg-white border border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-300'
@@ -124,32 +124,32 @@ export default function NoticeList() {
                     {/* 标签行 */}
                     <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                       {levelInfo && (
-                        <span className={cn('text-[11px] font-medium px-2 py-0.5 rounded-md', levelInfo.cls)}>
+                        <span className={cn('text-[10px] font-medium px-1.5 py-0.5 rounded-md', levelInfo.cls)}>
                           {levelInfo.label}
                         </span>
                       )}
                       {match && (
-                        <span className="text-[11px] text-slate-400">
+                        <span className="text-[10px] text-slate-400">
                           扣分 {match.total_deduction}
                         </span>
                       )}
                       {sourceLabel && (
-                        <span className="text-[11px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
+                        <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
                           {sourceLabel}
                         </span>
                       )}
                       {notice.notice_type && (
-                        <span className="text-[11px] text-slate-400">
+                        <span className="text-[10px] text-slate-400">
                           {notice.notice_type === 'tender' ? '招标' : notice.notice_type === 'result' ? '中标' : notice.notice_type}
                         </span>
                       )}
                     </div>
 
                     {/* 标题 */}
-                    <h3 className="text-sm font-medium text-slate-800 line-clamp-1 group-hover:text-indigo-600 transition-colors">{notice.title}</h3>
+                    <h3 className="text-xs font-medium text-slate-800 line-clamp-1 group-hover:text-indigo-600 transition-colors">{notice.title}</h3>
 
                     {/* 元数据行 */}
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-slate-400">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[11px] text-slate-400">
                       {notice.budget_amount > 0 && <span>¥{notice.budget_amount}万</span>}
                       <span>{notice.city || notice.region_scope || '-'}</span>
                       {notice.end_date && <span>截止 {new Date(notice.end_date).toLocaleDateString('zh-CN')}</span>}
@@ -159,12 +159,12 @@ export default function NoticeList() {
                     {notice.ai_extracted_fields?.tech_keywords?.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-2">
                         {notice.ai_extracted_fields.tech_keywords.slice(0, 4).map(kw => (
-                          <span key={kw} className="text-[11px] bg-slate-50 text-slate-500 px-2 py-0.5 rounded-md">
+                          <span key={kw} className="text-[10px] bg-slate-50 text-slate-500 px-1.5 py-0.5 rounded-md">
                             {kw}
                           </span>
                         ))}
                         {notice.ai_extracted_fields.tech_keywords.length > 4 && (
-                          <span className="text-[11px] text-slate-300">+{notice.ai_extracted_fields.tech_keywords.length - 4}</span>
+                          <span className="text-[10px] text-slate-300">+{notice.ai_extracted_fields.tech_keywords.length - 4}</span>
                         )}
                       </div>
                     )}
@@ -187,15 +187,15 @@ export default function NoticeList() {
           <button
             disabled={page <= 1}
             onClick={() => setPage(p => p - 1)}
-            className="px-3.5 py-1.5 text-sm border border-slate-200 rounded-lg disabled:opacity-30 text-slate-600 hover:bg-slate-50 transition-colors"
+            className="px-3 py-1 text-xs border border-slate-200 rounded-lg disabled:opacity-30 text-slate-600 hover:bg-slate-50 transition-colors"
           >
             上一页
           </button>
-          <span className="text-sm text-slate-400">{page} / {totalPages}</span>
+          <span className="text-xs text-slate-400">{page} / {totalPages}</span>
           <button
             disabled={page >= totalPages}
             onClick={() => setPage(p => p + 1)}
-            className="px-3.5 py-1.5 text-sm border border-slate-200 rounded-lg disabled:opacity-30 text-slate-600 hover:bg-slate-50 transition-colors"
+            className="px-3 py-1 text-xs border border-slate-200 rounded-lg disabled:opacity-30 text-slate-600 hover:bg-slate-50 transition-colors"
           >
             下一页
           </button>

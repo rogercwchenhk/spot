@@ -5,7 +5,7 @@
 const express = require('express');
 const router = express.Router();
 const { supabaseAdmin, supabaseAdmin: supabaseWrite } = require('../db');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth, requireRole } = require('../middleware/auth');
 
 // ============================================================
 // 公司资质
@@ -46,7 +46,7 @@ router.get('/company', async (req, res) => {
 });
 
 // POST /api/qualifications/company - 新增公司资质（admin）
-router.post('/company', requireAuth, requireAdmin, async (req, res) => {
+router.post('/company', requireAuth, requireRole('admin', 'hr', 'presales'), async (req, res) => {
   try {
     const { qual_type, qual_name, qual_level, cert_number, issue_date, expiry_date, issuing_body, scope } = req.body;
 
@@ -79,7 +79,7 @@ router.post('/company', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // PUT /api/qualifications/company/:id - 更新公司资质（admin）
-router.put('/company/:id', requireAuth, requireAdmin, async (req, res) => {
+router.put('/company/:id', requireAuth, requireRole('admin', 'hr', 'presales'), async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
@@ -105,7 +105,7 @@ router.put('/company/:id', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // DELETE /api/qualifications/company/:id - 删除公司资质（admin）
-router.delete('/company/:id', requireAuth, requireAdmin, async (req, res) => {
+router.delete('/company/:id', requireAuth, requireRole('admin', 'hr', 'presales'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -161,7 +161,7 @@ router.get('/personnel', async (req, res) => {
 });
 
 // POST /api/qualifications/personnel - 新增人员资质（admin）
-router.post('/personnel', requireAuth, requireAdmin, async (req, res) => {
+router.post('/personnel', requireAuth, requireRole('admin', 'hr', 'presales'), async (req, res) => {
   try {
     const { person_name, qual_type, qual_name, cert_number, issue_date, expiry_date } = req.body;
 
@@ -192,7 +192,7 @@ router.post('/personnel', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // PUT /api/qualifications/personnel/:id - 更新人员资质（admin）
-router.put('/personnel/:id', requireAuth, requireAdmin, async (req, res) => {
+router.put('/personnel/:id', requireAuth, requireRole('admin', 'hr', 'presales'), async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
@@ -217,7 +217,7 @@ router.put('/personnel/:id', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // DELETE /api/qualifications/personnel/:id - 删除人员资质（admin）
-router.delete('/personnel/:id', requireAuth, requireAdmin, async (req, res) => {
+router.delete('/personnel/:id', requireAuth, requireRole('admin', 'hr', 'presales'), async (req, res) => {
   try {
     const { id } = req.params;
 

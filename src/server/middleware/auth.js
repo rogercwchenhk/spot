@@ -51,6 +51,18 @@ function requireAdmin(req, res, next) {
 }
 
 /**
+ * 角色白名单 — 只允许指定角色
+ */
+function requireRole(...roles) {
+  return (req, res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({ success: false, error: 'Insufficient permissions' });
+    }
+    next();
+  };
+}
+
+/**
  * 可选登录 — 未登录时 req.user = null
  */
 async function optionalAuth(req, res, next) {
@@ -87,4 +99,4 @@ async function optionalAuth(req, res, next) {
   next();
 }
 
-module.exports = { requireAuth, requireAdmin, optionalAuth };
+module.exports = { requireAuth, requireAdmin, requireRole, optionalAuth };

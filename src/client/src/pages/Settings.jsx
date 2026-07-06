@@ -297,8 +297,10 @@ function UserManagement() {
               placeholder="密码" className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" />
             <select value={newRole} onChange={e => setNewRole(e.target.value)}
               className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400">
-              <option value="viewer">Sales (viewer)</option>
-              <option value="admin">Admin</option>
+              <option value="sales">Sales (sales)</option>
+              <option value="presales">PreSales (presales)</option>
+              <option value="hr">HR (hr)</option>
+              <option value="admin">Admin (admin)</option>
             </select>
           </div>
           <div className="flex gap-2">
@@ -330,7 +332,9 @@ function UserManagement() {
                   <td className="px-3 py-2.5">
                     <select value={u.role} onChange={e => handleRoleChange(u.id, e.target.value)}
                       className="text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
-                      <option value="viewer">Sales</option>
+                      <option value="sales">Sales</option>
+                      <option value="presales">PreSales</option>
+                      <option value="hr">HR</option>
                       <option value="admin">Admin</option>
                     </select>
                   </td>

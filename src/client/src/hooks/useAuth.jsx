@@ -58,7 +58,15 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, role, loading, login, logout, resetPassword, updatePassword, isAdmin: role === 'admin' }}>
+    <AuthContext.Provider value={{
+      user, role, loading, login, logout, resetPassword, updatePassword,
+      isAdmin: role === 'admin',
+      isHr: role === 'hr',
+      isPresales: role === 'presales',
+      isSales: role === 'sales',
+      // hr, presales, admin can manage qualifications
+      canManageQualifications: ['admin', 'hr', 'presales'].includes(role),
+    }}>
       {children}
     </AuthContext.Provider>
   );

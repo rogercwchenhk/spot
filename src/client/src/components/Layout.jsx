@@ -23,7 +23,7 @@ const navItems = [
 const MOBILE_TAB_COUNT = 4; // first 4 + "更多"
 
 export default function Layout() {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, role, isAdmin, canManageQualifications, logout } = useAuth();
   const online = useOnlineStatus();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -69,7 +69,7 @@ export default function Layout() {
               'text-[10px] font-medium px-1.5 py-0.5 rounded-md uppercase tracking-wider',
               isAdmin ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-500'
             )}>
-              {isAdmin ? 'Admin' : 'Sales'}
+              {role === 'admin' ? 'Admin' : role === 'hr' ? 'HR' : role === 'presales' ? 'PreSales' : 'Sales'}
             </span>
           </div>
           <button onClick={logout} className="p-2 text-slate-400 hover:text-rose-500 transition-colors rounded-lg hover:bg-rose-50" title="登出">
