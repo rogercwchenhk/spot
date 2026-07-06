@@ -103,6 +103,9 @@ export default function Contracts() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Cleanup debounce timer on unmount
+  useEffect(() => () => clearTimeout(debounceRef.current), []);
+
   const handleSave = async (form) => {
     if (editing) {
       await radarApi.put(`/contracts/${editing.id}`, { body: form });

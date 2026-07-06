@@ -49,4 +49,9 @@
   .badge-expired {
     @apply bg-rose-50 text-rose-700 border border-rose-200/60;
   }
+
+  /* iPhone safe area padding */
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
 }
