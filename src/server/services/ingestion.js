@@ -153,6 +153,54 @@ async function fetchAndStoreAdvanced(keywordGroup, opts = {}) {
 
 
 // ============================================================
+// 关键词过滤（Scrapling 后处理）
+// ============================================================
+
+/**
+ * 对 Scrapling 结果进行关键词+省份过滤
+ * 返回与 keywordGroups 匹配的标讯，排除 excludeKeywords 命中的标讯
+ */
+function filterByKeywords(notices, keywordGroups, excludeKeywords, targetProvince) {
+  if (!notices || notices.length === 0) return [];
+
+  // 构建关键词正则：每组内 OR，任意一组匹配即保留
+  const groupPatterns = (keywordGroups || []).map(group => {
+    const terms = (group.groups || []).flatMap(g => g.keywords || []);
+    if (terms.length === 0) return null;
+    return new RegExp(terms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'i');
+  }).filter(Boolean);
+
+  // 排除词正则
+  const excludePattern = (excludeKeywords && excludeKeywords.length > 0)
+    ? new RegExp(excludeKeywords.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'i')
+    : null;
+
+  return notices.filter(notice => {
+    const text = [notice.title, notice.tenderee, notice.tender_agent].filter(Boolean).join(' ');
+
+    // 排除词过滤
+    if (excludePattern && excludePattern.test(text)) return false;
+
+    // 省份过滤：如果指定了目标省份，只保留匹配的
+    if (targetProvince) {
+      const region = (notice.city || notice.region_scope || '').toLowerCase();
+      const province = targetProvince.toLowerCase();
+      // 包含目标省份 或 标记为"全国"的保留
+      if (!region.includes(province) && region !== '全国' && region !== '') return false;
+    }
+
+    // 关键词过滤：至少匹配一组关键词
+    if (groupPatterns.length > 0) {
+      return groupPatterns.some(pattern => pattern.test(text));
+    }
+
+    // 没有关键词配置时全部保留
+    return true;
+  });
+}
+
+
+// ============================================================
 // Scrapling 通道（新增）
 // ============================================================
 
@@ -186,9 +234,20 @@ async function fetchViaScrapling(platform, opts = {}) {
     }
 
     // 映射为 bidding_notice 格式
-    const notices = result.items.map(item =>
+    let notices = result.items.map(item =>
       scrapling.mapScraplingItemToNotice(item, platform.id)
     );
+
+    // 关键词+省份过滤
+    const targetProvince = opts.province || await getConfig('fetch.province', '广东');
+    const kwGroups = opts.keywordGroups || config.keywordGroups;
+    const exclKw = opts.excludeKeywords || config.excludeKeywords;
+    const beforeFilter = notices.length;
+    notices = filterByKeywords(notices, kwGroups, exclKw, targetProvince);
+    const filtered = beforeFilter - notices.length;
+    if (filtered > 0) {
+      console.log(`[ingestion:scrapling] ${platform.platform_name}: 关键词过滤 ${beforeFilter} -> ${notices.length} (剔除 ${filtered})`);
+    }
 
     // 去重入库
     const { inserted, skipped } = await dedupAndInsert(notices);
