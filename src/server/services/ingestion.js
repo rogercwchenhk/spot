@@ -163,11 +163,16 @@ async function fetchAndStoreAdvanced(keywordGroup, opts = {}) {
 function filterByKeywords(notices, keywordGroups, excludeKeywords, targetProvince) {
   if (!notices || notices.length === 0) return [];
 
-  // 构建关键词正则：每组内 OR，任意一组匹配即保留
+  // 构建关键词模式：每组内 AND（所有词必须出现），组间 OR（任意组匹配）
   const groupPatterns = (keywordGroups || []).map(group => {
-    const terms = (group.groups || []).flatMap(g => g.keywords || []);
-    if (terms.length === 0) return null;
-    return new RegExp(terms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'i');
+    const subGroups = (group.groups || []).filter(g => g.keywords && g.keywords.length > 0);
+    if (subGroups.length === 0) return null;
+    return subGroups.map(sg => {
+      return sg.keywords.map(k => {
+        const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return new RegExp(escaped, 'i');
+      });
+    });
   }).filter(Boolean);
 
   // 排除词正则
@@ -189,9 +194,11 @@ function filterByKeywords(notices, keywordGroups, excludeKeywords, targetProvinc
       if (!region.includes(province) && region !== '全国' && region !== '') return false;
     }
 
-    // 关键词过滤：至少匹配一组关键词
+    // 关键词过滤：至少匹配一组的至少一个子组（子组内 AND，组间 OR）
     if (groupPatterns.length > 0) {
-      return groupPatterns.some(pattern => pattern.test(text));
+      return groupPatterns.some(subGroups =>
+        subGroups.some(ands => ands.every(re => re.test(text)))
+      );
     }
 
     // 没有关键词配置时全部保留
