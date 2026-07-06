@@ -3,6 +3,7 @@ import { radarApi } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { cn } from '../lib/utils';
+import { ResponsiveCard, CardField, CardAction, ResponsiveTableContainer, ResponsiveCardList } from '../components/ResponsiveCard';
 import Modal, { ConfirmDialog } from '../components/Modal';
 import { Plus, Pencil, Trash2, Save, Search as SearchIcon } from 'lucide-react';
 
@@ -226,33 +227,25 @@ export default function Contracts() {
           </div>
 
           {/* 移动端：卡片视图 */}
-          <div className="md:hidden space-y-3">
+          <ResponsiveCardList>
             {contracts.map(c => (
-              <div key={c.id} className="bg-white rounded-xl border border-slate-200/80 p-4">
-                <h3 className="font-medium text-slate-800 text-sm truncate">{c.project_name}</h3>
-                <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
-                  <div><span className="text-slate-500">甲方:</span> <span className="text-slate-700">{c.client_name || '-'}</span></div>
-                  <div><span className="text-slate-500">金额:</span> <span className="text-slate-700 tabular-nums">{c.contract_amount ? Number(c.contract_amount).toFixed(0) + '万' : '-'}</span></div>
-                  <div><span className="text-slate-500">类型:</span> <span className="text-slate-700">{c.service_type || '-'}</span></div>
-                  <div><span className="text-slate-500">行业:</span> <span className="text-slate-700">{c.industry || '-'}</span></div>
-                  <div><span className="text-slate-500">地区:</span> <span className="text-slate-700">{c.region || '-'}</span></div>
-                  <div><span className="text-slate-500">合同期:</span> <span className="text-slate-700">{c.start_date && c.end_date ? `${c.start_date} ~ ${c.end_date}` : c.start_date || c.end_date || '-'}</span></div>
-                </div>
+              <ResponsiveCard key={c.id} title={c.project_name}>
+                <CardField label="甲方" value={c.client_name} />
+                <CardField label="金额" value={c.contract_amount ? Number(c.contract_amount).toFixed(0) + '万' : '-'} />
+                <CardField label="类型" value={c.service_type} />
+                <CardField label="行业" value={c.industry} />
+                <CardField label="地区" value={c.region} />
+                <CardField label="合同期" value={c.start_date && c.end_date ? `${c.start_date} ~ ${c.end_date}` : c.start_date || c.end_date || '-'} />
                 {isAdmin && (
-                  <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t border-slate-100">
-                    <button onClick={() => { setEditing(c); setFormOpen(true); }}
-                      className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-indigo-600 px-2 py-1 rounded hover:bg-indigo-50 transition-colors">
-                      <Pencil size={12} /> 编辑
-                    </button>
-                    <button onClick={() => setConfirmDelete(c)}
-                      className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-rose-500 px-2 py-1 rounded hover:bg-rose-50 transition-colors">
-                      <Trash2 size={12} /> 删除
-                    </button>
-                  </div>
+                  <>
+                    <CardAction icon={<Pencil size={12} />} label="编辑" onClick={() => { setEditing(c); setFormOpen(true); }} />
+                    <CardAction icon={<Trash2 size={12} />} label="删除" onClick={() => setConfirmDelete(c)} variant="danger" />
+                  </>
                 )}
-              </div>
+              </ResponsiveCard>
             ))}
-          </div>
+          </ResponsiveCardList>
+
 
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-3 mt-4">

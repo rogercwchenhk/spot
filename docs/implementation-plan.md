@@ -626,3 +626,40 @@ Webhook 地址存储在 `system_config` 表，通过 `cr admin config:webhook <u
 // 优先从数据库读取，回退到 .env
 const webhookUrl = await getConfig('push.webhook_url', DEFAULT_WEBHOOK);
 ```
+
+
+---
+
+## 11. 提交规范与 PDCA 循环
+
+为提升项目可维护性，建立 PDCA 感知的提交规范：
+
+- **详细规范**: [commit-convention.md](./commit-convention.md)
+- **核心原则**:
+  - `feat`: 新功能 (Do 阶段)
+  - `fix`: Bug 修复 (Check → Act 阶段)
+  - `refactor`: 代码重构，不改变外部行为 (Act 阶段)
+  - `docs`: 文档更新 (Plan 阶段)
+
+**历史提交分类** (23个fix提交):
+- 保持 fix: 7个 (纯 Bug 修复)
+- 建议重构为 refactor: 16个 (改进逻辑)
+
+
+---
+
+## 12. 重构待办清单 (Refactor Backlog)
+
+为强化 PDCA 循环的 Act 阶段，将隐性改进转化为显性任务：
+
+- **详细清单**: [refactor-backlog.md](./refactor-backlog.md)
+- **任务总数**: 9个重构任务
+- **优先级分布**:
+  - P0 (必须): 1个 - 关键词过滤系统重构
+  - P1 (重要): 7个 - UI/UX改进 + 架构优化
+  - P2 (可选): 1个 - 安全区适配
+
+**执行策略**:
+- 第一批 (P0): 立即执行
+- 第二批 (P1): 尽快执行
+- 第三批 (P2): 按需执行

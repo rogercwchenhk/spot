@@ -9,6 +9,7 @@ const { searchBids, queryBidsAdvanced } = require('./zhiliao-api');
 const scrapling = require('./scrapling-client');
 const config = require('../config');
 const { getConfig } = require('./config-reader');
+const { filterByKeywords } = require('./filter');
 
 // ============================================================
 // 通用工具函数（v2 保留）
@@ -150,81 +151,6 @@ async function fetchAndStoreAdvanced(keywordGroup, opts = {}) {
   }
   return { fetched: totalFetched, inserted: totalInserted, skipped: totalSkipped };
 }
-
-
-// ============================================================
-// 关键词过滤（Scrapling 后处理）
-// ============================================================
-
-/**
- * 对 Scrapling 结果进行关键词+省份过滤
- * 返回与 keywordGroups 匹配的标讯，排除 excludeKeywords 命中的标讯
- */
-function filterByKeywords(notices, keywordGroups, excludeKeywords, targetProvince) {
-  if (!notices || notices.length === 0) return [];
-
-  // 构建关键词模式：每组内 AND（所有词必须出现），组间 OR（任意组匹配）
-  const groupPatterns = (keywordGroups || []).map(group => {
-    const subGroups = (group.groups || []).filter(g => g.keywords && g.keywords.length > 0);
-    if (subGroups.length === 0) return null;
-    return subGroups.map(sg => {
-      return sg.keywords.map(k => {
-        const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        return new RegExp(escaped, 'i');
-      });
-    });
-  }).filter(Boolean);
-
-  // 排除词正则
-  const excludePattern = (excludeKeywords && excludeKeywords.length > 0)
-    ? new RegExp(excludeKeywords.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'i')
-    : null;
-
-  return notices.filter(notice => {
-    const text = [notice.title, notice.tenderee, notice.tender_agent].filter(Boolean).join(' ');
-
-    // 排除词过滤（仅检查标题，避免采购方公司名误伤）
-    const titleText = notice.title || '';
-    if (excludePattern && excludePattern.test(titleText)) return false;
-
-    // 省份过滤：支持多省份（数组或逗号分隔字符串）
-    if (targetProvince) {
-      const region = (notice.city || notice.region_scope || '').toLowerCase();
-      const provinces = Array.isArray(targetProvince)
-        ? targetProvince.map(p => p.toLowerCase().trim())
-        : targetProvince.split(/[,，]/).map(p => p.toLowerCase().trim()).filter(Boolean);
-      // 城市或省份必须包含任一目标省份
-      if (!provinces.some(p => region.includes(p))) return false;
-    }
-
-    // 关键词过滤：至少匹配一组的至少一个子组（子组内 AND，组间 OR）
-    if (groupPatterns.length > 0) {
-      return groupPatterns.some(subGroups =>
-        subGroups.some(ands => ands.every(re => re.test(text)))
-      );
-    }
-
-    // 正向关键词兜底（检查标题，必须包含至少一个 IT 核心词才放行）
-    const POSITIVE_IT_KEYWORDS = [
-      '运维', '维保', 'IT', '信息化', '信息技术', '服务器', '存储', '网络', '数据库', '小型机', '驻场', '机房', '数据中心',
-      '系统集成', '弱电', '安防', '监控', '视频会议', '通信', '云计算', '虚拟化', '中间件',
-      '安全服务', '信息安全', '网络安全', '网安', '数据安全', '应用系统', '信息中心', '技术支撑', '技术支持',
-      '桌面运维', '桌面外包', '网络运维', '系统运维', '基础设施', '计算机', '软件', '硬件', '数据', '数字化',
-      '交换机', '路由器', '防火墙', 'UPS', '备份', '容灾', '灾备', '政务', '电子政务',
-      'IBM', 'Oracle', 'HP', 'HPE', 'Dell', '华为', '华三', 'H3C', '锐捷', '深信服', '天融信',
-      'Power', 'AIX', 'Linux', 'Windows Server', 'VMware', 'Vmware', 'ITO',
-    ];
-    const positivePattern = new RegExp(POSITIVE_IT_KEYWORDS.join('|'), 'i');
-    if (!positivePattern.test(titleText)) return false;
-
-    return true;
-  });
-}
-
-
-// ============================================================
-// Scrapling 通道（新增）
-// ============================================================
 
 /**
  * 通过 Scrapling 爬取单个平台

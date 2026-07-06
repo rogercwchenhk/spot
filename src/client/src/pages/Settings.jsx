@@ -3,6 +3,7 @@ import { radarApi } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { Save, RefreshCw, Pencil, X, Plus, Trash2, Target, Tag, TrendingUp, Settings2, Users, Clock, Key, Database, Mail } from 'lucide-react';
+import TimePicker from '../components/TimePicker';
 
 // ── cron ↔ 时间列表互转 ──────────────────────────────────
 
@@ -723,55 +724,6 @@ export default function Settings() {
       </div>
     );
   };
-
-  // ── 时间选择器组件 ────────────────────────────
-  const renderTimePicker = ({ title, desc, times, setTimes, editing, setEditing, onSave }) => (
-    <div className="bg-white rounded-xl border border-slate-200/80 p-5">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
-        {!editing && (
-          <button onClick={() => setEditing(true)}
-            className="inline-flex items-center gap-1 text-xs border border-slate-200/80 text-slate-600 px-2 py-1 rounded hover:bg-slate-100">
-            <Pencil size={12} /> 编辑
-          </button>
-        )}
-      </div>
-      <p className="text-xs text-slate-400 mb-3">{desc}</p>
-
-      {editing ? (
-        <>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {times.map((t, i) => (
-              <div key={i} className="inline-flex items-center gap-1 bg-indigo-50 border border-yellow-300 rounded-lg px-2 py-1">
-                <input type="time" value={t}
-                  onChange={e => { const next = [...times]; next[i] = e.target.value; setTimes(next); }}
-                  className="text-sm border-none bg-transparent focus:outline-none"
-                />
-                <button onClick={() => setTimes(times.filter((_, j) => j !== i))}
-                  className="text-slate-400 hover:text-red-500"><Trash2 size={12} /></button>
-              </div>
-            ))}
-            <button onClick={() => setTimes([...times, '12:00'])}
-              className="inline-flex items-center gap-1 text-xs text-slate-600 border border-dashed border-slate-200 px-2 py-1 rounded hover:bg-slate-50">
-              <Plus size={12} /> 添加
-            </button>
-          </div>
-          <div className="flex gap-2 pt-3 border-t border-slate-100">
-            <button onClick={onSave} disabled={saving}
-              className="inline-flex items-center gap-1 text-sm bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50">
-              <Save size={14} /> 保存
-            </button>
-            <button onClick={() => { setEditing(false); fetchConfig(); }}
-              className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 px-4 py-2">
-              <X size={14} /> 取消
-            </button>
-          </div>
-        </>
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          {times.map((t, i) => (
-            <span key={i} className="inline-flex items-center bg-slate-100 text-slate-700 text-sm px-3 py-1 rounded-full">{t}</span>
-          ))}
         </div>
       )}
     </div>
@@ -854,16 +806,20 @@ export default function Settings() {
           {/* 定时任务 */}
           {activeTab === 'schedule' && (
             <div className="space-y-6">
-              {renderTimePicker({
-                title: '采集时间', desc: '每天在以下时间自动采集标讯数据',
-                times: fetchTimes, setTimes: setFetchTimes,
-                editing: fetchEditing, setEditing: setFetchEditing, onSave: saveFetchSchedule,
-              })}
-              {renderTimePicker({
-                title: '推送时间', desc: '每天在以下时间推送日报到企微群',
-                times: pushTimes, setTimes: setPushTimes,
-                editing: pushEditing, setEditing: setPushEditing, onSave: savePushSchedule,
-              })}
+              <TimePicker
+                title="采集时间"
+                description="每天在以下时间自动采集标讯数据"
+                times={fetchTimes}
+                onTimesChange={setFetchTimes}
+                onSave={saveFetchSchedule}
+              />
+              <TimePicker
+                title="推送时间"
+                description="每天在以下时间推送日报到企微群"
+                times={pushTimes}
+                onTimesChange={setPushTimes}
+                onSave={savePushSchedule}
+              />
             </div>
           )}
 

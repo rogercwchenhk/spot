@@ -3,6 +3,7 @@ import { radarApi } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { cn } from '../lib/utils';
+import { ResponsiveCard, CardField, CardAction, ResponsiveTableContainer, ResponsiveCardList } from '../components/ResponsiveCard';
 import Modal, { ConfirmDialog } from '../components/Modal';
 import { Plus, Pencil, Trash2, Save, Image as ImageIcon, HelpCircle } from 'lucide-react';
 import QualImageManager from '../components/QualImageManager';
@@ -368,47 +369,41 @@ export default function Qualifications() {
           </div>
 
           {/* 移动端：卡片视图 */}
-          <div className="md:hidden space-y-3">
+          <ResponsiveCardList>
             {currentData.map(item => (
-              <div key={item.id} className="bg-white rounded-xl border border-slate-200/80 p-4">
-                <h3 className="font-medium text-slate-800 text-sm">
-                  {tab === 'company' ? item.qual_name : item.person_name}
-                </h3>
-                <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
-                  {tab === 'company' ? (
-                    <>
-                      <div><span className="text-slate-500">类型:</span> <span className="text-slate-700">{item.qual_type}</span></div>
-                      <div><span className="text-slate-500">等级:</span> <span className="text-slate-700">{item.qual_level || '-'}</span></div>
-                      <div><span className="text-slate-500">编号:</span> <span className="text-slate-700 font-mono">{item.cert_number || '-'}</span></div>
-                      <div><span className="text-slate-500">有效期:</span> {(() => { const s = getExpiryStatus(item.expiry_date); return <span className={cn("inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded", s.bg, s.color)}>{item.expiry_date ? new Date(item.expiry_date).toLocaleDateString('zh-CN') : '永久'}{item.expiry_date && s.label !== '永久' && <span className="text-[10px] opacity-75">({s.label})</span>}</span>; })()}</div>
-                    </>
-                  ) : (
-                    <>
-                      <div><span className="text-slate-500">类型:</span> <span className="text-slate-700">{item.qual_type}</span></div>
-                      <div><span className="text-slate-500">证书:</span> <span className="text-slate-700">{item.qual_name}</span></div>
-                      <div><span className="text-slate-500">编号:</span> <span className="text-slate-700 font-mono">{item.cert_number || '-'}</span></div>
-                      <div><span className="text-slate-500">有效期:</span> {(() => { const s = getExpiryStatus(item.expiry_date); return <span className={cn("inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded", s.bg, s.color)}>{item.expiry_date ? new Date(item.expiry_date).toLocaleDateString('zh-CN') : '永久'}{item.expiry_date && s.label !== '永久' && <span className="text-[10px] opacity-75">({s.label})</span>}</span>; })()}</div>
-                    </>
-                  )}
-                </div>
-                {canManageQualifications && (
-                  <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t border-slate-100">
-                    <button onClick={() => handleEdit(item)}
-                      className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-indigo-600 px-2 py-1 rounded hover:bg-indigo-50 transition-colors">
-                      <Pencil size={12} /> 编辑
-                    </button>
-                    <button onClick={() => setConfirmDelete(item)}
-                      className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-rose-500 px-2 py-1 rounded hover:bg-rose-50 transition-colors">
-                      <Trash2 size={12} /> 删除
-                    </button>
-                    <button onClick={() => setSelectedForImages(item)}
-                      className={cn("inline-flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors", selectedForImages?.id === item.id ? "text-indigo-600 bg-indigo-50" : "text-slate-500 hover:text-indigo-600 hover:bg-indigo-50")}>
-                      <ImageIcon size={12} /> 图片
-                    </button>
-                  </div>
+              <ResponsiveCard key={item.id} title={tab === "company" ? item.qual_name : item.person_name}>
+                {tab === "company" ? (
+                  <>
+                    <CardField label="类型" value={item.qual_type} />
+                    <CardField label="等级" value={item.qual_level} />
+                    <CardField label="编号" value={item.cert_number} />
+                    <div>
+                      <span className="text-slate-500">有效期:</span>{" "}
+                      {(() => { const s = getExpiryStatus(item.expiry_date); return <span className={cn("inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded", s.bg, s.color)}>{item.expiry_date ? new Date(item.expiry_date).toLocaleDateString("zh-CN") : "永久"}{item.expiry_date && s.label !== "永久" && <span className="text-[10px] opacity-75">({s.label})</span>}</span>; })()}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <CardField label="类型" value={item.qual_type} />
+                    <CardField label="证书" value={item.qual_name} />
+                    <CardField label="编号" value={item.cert_number} />
+                    <div>
+                      <span className="text-slate-500">有效期:</span>{" "}
+                      {(() => { const s = getExpiryStatus(item.expiry_date); return <span className={cn("inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded", s.bg, s.color)}>{item.expiry_date ? new Date(item.expiry_date).toLocaleDateString("zh-CN") : "永久"}{item.expiry_date && s.label !== "永久" && <span className="text-[10px] opacity-75">({s.label})</span>}</span>; })()}
+                    </div>
+                  </>
                 )}
-              </div>
+                {canManageQualifications && (
+                  <>
+                    <CardAction icon={<Pencil size={12} />} label="编辑" onClick={() => handleEdit(item)} />
+                    <CardAction icon={<Trash2 size={12} />} label="删除" onClick={() => setConfirmDelete(item)} variant="danger" />
+                    <CardAction icon={<ImageIcon size={12} />} label="图片" onClick={() => setSelectedForImages(item)} variant={selectedForImages?.id === item.id ? "primary" : "default"} />
+                  </>
+                )}
+              </ResponsiveCard>
             ))}
+          </ResponsiveCardList>
+
           </div>
         </>
       )}
