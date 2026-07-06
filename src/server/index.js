@@ -6,6 +6,7 @@ const { startScheduler } = require('./services/scheduler');
 // 路由
 const noticesRouter = require('./routes/notices');
 const qualificationsRouter = require('./routes/qualifications');
+const qualImagesRouter = require('./routes/qual-images');
 const contractsRouter = require('./routes/contracts');
 const platformsRouter = require('./routes/platforms');
 const matchRouter = require('./routes/match');
@@ -63,6 +64,7 @@ app.use('/api/auth', authRouter);
 // 业务 API
 app.use('/api/notices', noticesRouter);
 app.use('/api/qualifications', qualificationsRouter);
+app.use('/api/qual-images', qualImagesRouter);
 app.use('/api/contracts', contractsRouter);
 app.use('/api/platforms', platformsRouter);
 app.use('/api/match', matchRouter);

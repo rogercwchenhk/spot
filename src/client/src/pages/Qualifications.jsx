@@ -4,7 +4,8 @@ import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { cn } from '../lib/utils';
 import Modal, { ConfirmDialog } from '../components/Modal';
-import { Plus, Pencil, Trash2, Save } from 'lucide-react';
+import { Plus, Pencil, Trash2, Save, Image as ImageIcon, HelpCircle } from 'lucide-react';
+import QualImageManager from '../components/QualImageManager';
 
 // ── 字段定义 ──────────────────────────────────────────
 const COMPANY_FIELDS = [
@@ -126,6 +127,48 @@ function QualFormModal({ open, onClose, onSave, fields, initial, title }) {
   );
 }
 
+// ── 操作指引条 ──────────────────────────────────────────
+function GuideBar() {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div className="bg-slate-50 border border-slate-200 rounded-xl px-5 py-3.5">
+      <div className="flex items-center gap-4 flex-wrap text-xs">
+        <span className="font-medium text-slate-700 flex items-center gap-1">
+          <HelpCircle size={12} className="text-slate-400" />
+          操作流程
+        </span>
+        {[
+          { step: '1', label: '新增记录', hint: '填写基本信息后保存' },
+          { step: '2', label: '上传图片', hint: 'PNG / JPEG / PDF，最大 20MB' },
+          { step: '3', label: 'AI 识别', hint: '点击图片上的 🔍 自动提取字段' },
+          { step: '4', label: '设为主图', hint: '星标图片作为标书默认使用' },
+        ].map((s, i) => (
+          <div key={s.step} className="flex items-center gap-2">
+            <span className="w-4 h-4 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+              {s.step}
+            </span>
+            <span className="text-slate-700 font-medium">{s.label}</span>
+            <span className="text-slate-400 text-[11px] hidden sm:inline">— {s.hint}</span>
+            {i < 3 && <span className="text-slate-300 ml-2 hidden md:inline">›</span>}
+          </div>
+        ))}
+      </div>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="text-xs text-indigo-500 hover:text-indigo-700 mt-2 transition-colors"
+      >
+        {expanded ? '收起' : '查看图片格式要求'}
+      </button>
+      {expanded && (
+        <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+          扫描件推荐 PNG 格式，分辨率 300 DPI（打印质量）；手机拍摄请确保光线充足、文字清晰；
+          多页证书可上传 PDF 或分多张图片；设为主图的图片将作为标书默认使用。
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ── 主组件 ──────────────────────────────────────────
 export default function Qualifications() {
   const { canManageQualifications } = useAuth();
@@ -185,35 +228,42 @@ export default function Qualifications() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-800">资质管理</h2>
-          <p className="text-sm text-slate-400 mt-0.5">公司与人员资质证书管理</p>
+      {/* 标题 */}
+      <div className="mb-5">
+        <h2 className="text-lg font-semibold text-slate-800">资质管理</h2>
+        <p className="text-sm text-slate-400 mt-0.5">公司与人员资质证书管理，支持证书图片上传和 AI 智能识别</p>
+      </div>
+
+      {/* Tab 栏 + 新增按钮 */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex gap-1.5">
+          {[{ value: 'company', label: '公司资质', count: companyQuals.length },
+            { value: 'personnel', label: '人员资质', count: personnelQuals.length },
+          ].map(t => (
+            <button
+              key={t.value}
+              onClick={() => setTab(t.value)}
+              className={cn(
+                'px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all',
+                tab === t.value ? 'bg-slate-800 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-500 hover:text-slate-700'
+              )}
+            >
+              {t.label}
+              <span className="ml-1.5 text-xs opacity-60">({t.count})</span>
+            </button>
+          ))}
         </div>
         {canManageQualifications && (
           <button onClick={handleCreate}
-            className="inline-flex items-center gap-1.5 bg-indigo-600 text-white px-3.5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm shadow-indigo-600/20">
+            className="inline-flex items-center gap-1.5 bg-indigo-600 text-white px-3.5 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm shadow-indigo-600/20 whitespace-nowrap">
             <Plus size={14} /> 新增
           </button>
         )}
       </div>
 
-      <div className="flex gap-1.5 mb-5">
-        {[{ value: 'company', label: '公司资质', count: companyQuals.length },
-          { value: 'personnel', label: '人员资质', count: personnelQuals.length },
-        ].map(t => (
-          <button
-            key={t.value}
-            onClick={() => setTab(t.value)}
-            className={cn(
-              'px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all',
-              tab === t.value ? 'bg-slate-800 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-500 hover:text-slate-700'
-            )}
-          >
-            {t.label}
-            <span className="ml-1.5 text-xs opacity-60">({t.count})</span>
-          </button>
-        ))}
+      {/* 操作指引 */}
+      <div className="mb-5">
+        <GuideBar />
       </div>
 
       {loading ? (
@@ -340,6 +390,17 @@ export default function Qualifications() {
             ))}
           </div>
         </>
+      )}
+
+      {/* 资质图片管理 */}
+      {canManageQualifications && (
+        <div className="mt-6 bg-white rounded-xl border border-slate-200/80 p-5">
+          <QualImageManager
+            qualType={tab}
+            qualId={editing?.id}
+            qualName={editing?.qual_name || editing?.person_name || ''}
+          />
+        </div>
       )}
 
       {/* 新增/编辑弹窗 */}
