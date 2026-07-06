@@ -111,4 +111,8 @@ process.on('unhandledRejection', (reason) => {
   console.error('[fatal] Unhandled rejection:', reason);
 });
 const dashboardRouter = require('./routes/dashboard');
+const notificationsRouter = require('./routes/notifications');
+const dashboardTrendRouter = require('./routes/dashboard-trend');
 app.use('/api/dashboard', dashboardRouter);
+app.use('/api/notifications', notificationsRouter);
+app.use('/api/dashboard', dashboardTrendRouter);

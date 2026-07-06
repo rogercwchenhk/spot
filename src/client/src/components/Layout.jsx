@@ -2,21 +2,25 @@ import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import {
-  LayoutDashboard, ClipboardList, Search, Award, Globe, Settings, LogOut, Menu, X, User, Bell,
+  LayoutDashboard, ClipboardList, Search, Award, FileText, BarChart3,
+  Globe, Settings, LogOut, Menu, X, User,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import NotificationBell from './NotificationBell';
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: '工作台' },
   { to: '/', icon: ClipboardList, label: '标讯' },
   { to: '/search', icon: Search, label: '搜索' },
   { to: '/qualifications', icon: Award, label: '资质' },
+  { to: '/contracts', icon: FileText, label: '合同' },
+  { to: '/reports', icon: BarChart3, label: '报表' },
   { to: '/platforms', icon: Globe, label: '平台', adminOnly: true },
   { to: '/settings', icon: Settings, label: '设置', adminOnly: true },
 ];
 
 export default function Layout() {
-  const { user, role, isAdmin, logout } = useAuth();
+  const { user, isAdmin, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const visibleItems = navItems.filter(item => !item.adminOnly || isAdmin);
@@ -37,9 +41,7 @@ export default function Layout() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button className="relative p-2 text-slate-400 hover:text-slate-600 transition-colors rounded-lg hover:bg-slate-100">
-            <Bell size={18} />
-          </button>
+          <NotificationBell />
           <div className="hidden sm:flex items-center gap-2.5 pl-3 border-l border-slate-200">
             <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-semibold">
               {(user?.email || 'U')[0].toUpperCase()}
@@ -99,7 +101,7 @@ export default function Layout() {
 
       {/* 底部 Tab 栏 (移动端) */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-slate-200/80 flex lg:hidden z-30">
-        {visibleItems.map(item => (
+        {visibleItems.slice(0, 5).map(item => (
           <NavLink
             key={item.to}
             to={item.to}

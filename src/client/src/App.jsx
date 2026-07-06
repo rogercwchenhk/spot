@@ -12,6 +12,8 @@ import Search from './pages/Search';
 import Qualifications from './pages/Qualifications';
 import Platforms from './pages/Platforms';
 import Settings from './pages/Settings';
+import Contracts from './pages/Contracts';
+import Reports from './pages/Reports';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -59,6 +61,8 @@ export default function App() {
                   <Route path="notices/:id" element={<ErrorBoundary><NoticeDetail /></ErrorBoundary>} />
                   <Route path="search" element={<ErrorBoundary><Search /></ErrorBoundary>} />
                   <Route path="qualifications" element={<ErrorBoundary><Qualifications /></ErrorBoundary>} />
+                  <Route path="contracts" element={<ErrorBoundary><Contracts /></ErrorBoundary>} />
+                  <Route path="reports" element={<ErrorBoundary><Reports /></ErrorBoundary>} />
                   <Route path="platforms" element={<ProtectedRoute adminOnly><ErrorBoundary><Platforms /></ErrorBoundary></ProtectedRoute>} />
                   <Route path="settings" element={<ProtectedRoute adminOnly><ErrorBoundary><Settings /></ErrorBoundary></ProtectedRoute>} />
                 </Route>
