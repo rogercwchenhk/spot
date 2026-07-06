@@ -187,12 +187,14 @@ function filterByKeywords(notices, keywordGroups, excludeKeywords, targetProvinc
     const titleText = notice.title || '';
     if (excludePattern && excludePattern.test(titleText)) return false;
 
-    // 省份过滤：只保留目标省份的公告（严格模式，"全国"不再放行）
+    // 省份过滤：支持多省份（数组或逗号分隔字符串）
     if (targetProvince) {
       const region = (notice.city || notice.region_scope || '').toLowerCase();
-      const province = targetProvince.toLowerCase();
-      // 城市或省份必须包含目标省份
-      if (!region.includes(province)) return false;
+      const provinces = Array.isArray(targetProvince)
+        ? targetProvince.map(p => p.toLowerCase().trim())
+        : targetProvince.split(/[,，]/).map(p => p.toLowerCase().trim()).filter(Boolean);
+      // 城市或省份必须包含任一目标省份
+      if (!provinces.some(p => region.includes(p))) return false;
     }
 
     // 关键词过滤：至少匹配一组的至少一个子组（子组内 AND，组间 OR）

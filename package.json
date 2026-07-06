@@ -28,7 +28,8 @@
     "node-cron": "^3.0.3",
     "pdf-parse": "^2.4.5",
     "pdfjs-dist": "^4.0.379",
-    "playwright": "^1.61.1"
+    "playwright": "^1.61.1",
+    "resend": "^6.17.1"
   },
   "bin": {
     "cr": "cli/index.js"

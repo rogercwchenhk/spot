@@ -13,6 +13,7 @@ const { downloadNoticeDoc, downloadBatch } = require('../services/doc-downloader
 const { extractNoticeScoring, extractBatch } = require('../services/scoring-extractor');
 const { pushNoticeNotification, pushNewMatches, testPush } = require('../services/wecom-notify');
 const { fetchAndStore } = require('../services/ingestion');
+const { sendWelcomeEmail, sendPasswordResetEmail, sendEmailChangeConfirmation } = require('../services/email');
 
 // 所有管理接口都需要 admin 权限
 router.use(requireAuth, requireAdmin);
@@ -420,6 +421,11 @@ router.post('/users', async (req, res) => {
 
     if (error) throw error;
 
+    // 发送欢迎邮件
+    sendWelcomeEmail(email, password, role).catch(err => {
+      console.error('[admin] 欢迎邮件发送失败:', err.message);
+    });
+
     res.status(201).json({
       success: true,
       data: {
@@ -525,5 +531,104 @@ router.post('/notices/cleanup', async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+
+
+// PUT /api/admin/users/:id - 更新用户信息（邮箱、密码）
+router.put('/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { email, password } = req.body;
+
+    const updates = {};
+    if (email) {
+      updates.email = email;
+      updates.email_confirm = true; // 自动确认新邮箱
+    }
+    if (password) {
+      if (password.length < 6) {
+        return res.status(400).json({ success: false, error: '密码至少6位' });
+      }
+      updates.password = password;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ success: false, error: '没有需要更新的字段' });
+    }
+
+    // 获取旧邮箱
+    const { data: oldUserData } = await supabaseAdmin.auth.admin.getUserById(id);
+    const oldEmail = oldUserData?.user?.email;
+
+    const { data, error } = await supabaseAdmin.auth.admin.updateUserById(id, updates);
+    if (error) throw error;
+
+    // 如果邮箱变更，发送通知
+    if (email && oldEmail && email !== oldEmail) {
+      sendEmailChangeConfirmation(oldEmail, email).catch(err => {
+        console.error('[admin] 邮箱变更通知发送失败:', err.message);
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        id: data.user.id,
+        email: data.user.email,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/admin/users/:id - 删除用户
+router.delete('/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 防止删除自己
+    if (id === req.user.id) {
+      return res.status(400).json({ success: false, error: '不能删除当前登录用户' });
+    }
+
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(id);
+    if (error) throw error;
+
+    res.json({ success: true, message: '用户已删除' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/admin/users/:id/reset-password - 重置用户密码
+router.post('/users/:id/reset-password', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { password } = req.body;
+
+    if (!password || password.length < 6) {
+      return res.status(400).json({ success: false, error: '密码至少6位' });
+    }
+
+    const { data: userData, error: fetchError } = await supabaseAdmin.auth.admin.getUserById(id);
+    if (fetchError) throw fetchError;
+
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(id, { password });
+    if (error) throw error;
+
+    // 发送密码重置通知邮件
+    if (userData?.user?.email) {
+      sendPasswordResetEmail(userData.user.email, `${process.env.APP_URL || 'http://localhost:5173'}/login`).catch(err => {
+        console.error('[admin] 密码重置邮件发送失败:', err.message);
+      });
+    }
+
+    res.json({ success: true, message: '密码已重置' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 
 module.exports = router;

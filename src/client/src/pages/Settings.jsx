@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { radarApi } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
-import { Save, RefreshCw, Pencil, X, Plus, Trash2, Target, Tag, TrendingUp, Settings2, Users, Clock, Key, Database } from 'lucide-react';
+import { Save, RefreshCw, Pencil, X, Plus, Trash2, Target, Tag, TrendingUp, Settings2, Users, Clock, Key, Database, Mail } from 'lucide-react';
 
 // ── cron ↔ 时间列表互转 ──────────────────────────────────
 
@@ -56,8 +56,7 @@ const SECTIONS = [
   {
     title: '数据采集',
     fields: [
-      { key: 'fetch.province', label: '目标省份', type: 'text' },
-      { key: 'fetch.keywords', label: '搜索关键词组', type: 'keywords' },
+      { key: 'fetch.province', label: '目标省份/城市', type: 'provinces' },
     ],
   },
   {
@@ -74,8 +73,77 @@ const TABS = [
   { key: 'model', label: '模型与数据源', icon: Database },
   { key: 'keywords', label: '关键词', icon: Key },
   { key: 'schedule', label: '定时任务', icon: Clock },
+  { key: 'email', label: '邮件服务', icon: Mail },
   { key: 'users', label: '用户', icon: Users },
 ];
+
+
+// ── 省份标签输入组件 ────────────────────────────
+function ProvincesInput({ value, onChange, onSave, onCancel, isModified, saving }) {
+  const [inputValue, setInputValue] = useState('');
+
+  // Parse value to array
+  let provinces = [];
+  if (Array.isArray(value)) {
+    provinces = value;
+  } else if (typeof value === 'string' && value) {
+    provinces = value.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+  }
+
+  const handleAdd = () => {
+    const newProvince = inputValue.trim();
+    if (newProvince && !provinces.includes(newProvince)) {
+      onChange([...provinces, newProvince].join(','));
+      setInputValue('');
+    }
+  };
+
+  const handleRemove = (index) => {
+    const next = provinces.filter((_, i) => i !== index);
+    onChange(next.join(','));
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAdd();
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-1.5">
+        {provinces.map((p, i) => (
+          <span key={i} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 text-xs px-2 py-1 rounded border border-indigo-200">
+            {p}
+            <button onClick={() => handleRemove(i)} className="text-indigo-400 hover:text-indigo-600">
+              <X size={12} />
+            </button>
+          </span>
+        ))}
+        <input
+          type="text"
+          value={inputValue}
+          onChange={e => setInputValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="输入省份或城市，回车添加"
+          className="text-xs border-none bg-transparent focus:outline-none min-w-[120px]"
+        />
+      </div>
+      {isModified && (
+        <div className="flex gap-2 pt-2 border-t border-slate-100">
+          <button onClick={onSave} disabled={saving}
+            className="inline-flex items-center gap-1 text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 disabled:opacity-50">
+            <Save size={12} /> {saving ? '保存中...' : '保存'}
+          </button>
+          <button onClick={onCancel} className="text-xs text-slate-500 hover:text-slate-700 px-2">
+            取消
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── 格式化字段值显示 ────────────────────────────
 function formatFieldValue(type, val, defaultVal) {
@@ -272,6 +340,9 @@ function UserManagement() {
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState('sales');
   const [saving, setSaving] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [editEmail, setEditEmail] = useState('');
+  const [editPassword, setEditPassword] = useState('');
 
   const fetchUsers = () => {
     setLoading(true);
@@ -301,6 +372,54 @@ function UserManagement() {
       toast.success('角色已更新');
       fetchUsers();
     } catch (err) { toast.error('更新失败: ' + err.message); }
+  };
+
+  const startEdit = (user) => {
+    setEditingUser(user.id);
+    setEditEmail(user.email);
+    setEditPassword('');
+  };
+
+  const cancelEdit = () => {
+    setEditingUser(null);
+    setEditEmail('');
+    setEditPassword('');
+  };
+
+  const handleSaveEdit = async (userId) => {
+    if (!editEmail) { toast.error('邮箱不能为空'); return; }
+    setSaving(true);
+    try {
+      const body = { email: editEmail };
+      if (editPassword) {
+        if (editPassword.length < 6) { toast.error('密码至少6位'); setSaving(false); return; }
+        body.password = editPassword;
+      }
+      await radarApi.put(`/admin/users/${userId}`, { body });
+      toast.success('用户已更新');
+      cancelEdit();
+      fetchUsers();
+    } catch (err) { toast.error('更新失败: ' + err.message); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (userId, email) => {
+    if (!confirm(`确定要删除用户 ${email} 吗？`)) return;
+    try {
+      await radarApi.delete(`/admin/users/${userId}`);
+      toast.success('用户已删除');
+      fetchUsers();
+    } catch (err) { toast.error('删除失败: ' + err.message); }
+  };
+
+  const handleResetPassword = async (userId, email) => {
+    const password = prompt(`请输入 ${email} 的新密码（至少6位）：`);
+    if (!password) return;
+    if (password.length < 6) { toast.error('密码至少6位'); return; }
+    try {
+      await radarApi.post(`/admin/users/${userId}/reset-password`, { body: { password } });
+      toast.success('密码已重置');
+    } catch (err) { toast.error('重置失败: ' + err.message); }
   };
 
   return (
@@ -346,14 +465,31 @@ function UserManagement() {
             <thead>
               <tr className="border-b border-slate-100">
                 <th className="text-left px-3 py-2 text-xs font-semibold text-slate-500 uppercase">邮箱</th>
+                <th className="text-left px-3 py-2 text-xs font-semibold text-slate-500 uppercase">密码</th>
                 <th className="text-left px-3 py-2 text-xs font-semibold text-slate-500 uppercase">角色</th>
                 <th className="text-left px-3 py-2 text-xs font-semibold text-slate-500 uppercase">最后登录</th>
+                <th className="text-right px-3 py-2 text-xs font-semibold text-slate-500 uppercase">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {users.map(u => (
-                <tr key={u.id} className="hover:bg-slate-50/50">
-                  <td className="px-3 py-2.5 text-slate-800">{u.email}</td>
+                <tr key={u.id} className={`hover:bg-slate-50/50 ${editingUser === u.id ? 'bg-indigo-50/30' : ''}`}>
+                  <td className="px-3 py-2.5">
+                    {editingUser === u.id ? (
+                      <input type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)}
+                        className="w-full border border-indigo-400 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20" />
+                    ) : (
+                      <span className="text-slate-800">{u.email}</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    {editingUser === u.id ? (
+                      <input type="password" value={editPassword} onChange={e => setEditPassword(e.target.value)}
+                        placeholder="留空不修改" className="w-full border border-indigo-400 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20" />
+                    ) : (
+                      <span className="text-xs text-slate-400">••••••••</span>
+                    )}
+                  </td>
                   <td className="px-3 py-2.5">
                     <select value={u.role} onChange={e => handleRoleChange(u.id, e.target.value)}
                       className="text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
@@ -365,6 +501,35 @@ function UserManagement() {
                   </td>
                   <td className="px-3 py-2.5 text-xs text-slate-400">
                     {u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString('zh-CN') : '从未登录'}
+                  </td>
+                  <td className="px-3 py-2.5 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      {editingUser === u.id ? (
+                        <>
+                          <button onClick={() => handleSaveEdit(u.id)} disabled={saving}
+                            className="inline-flex items-center gap-1 text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 disabled:opacity-50">
+                            <Save size={12} /> {saving ? '...' : '保存'}
+                          </button>
+                          <button onClick={cancelEdit}
+                            className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 px-2 py-1 rounded">
+                            <X size={12} />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={() => startEdit(u)}
+                            className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-indigo-600 px-2 py-1 rounded hover:bg-indigo-50"
+                            title="编辑">
+                            <Pencil size={12} />
+                          </button>
+                          <button onClick={() => handleDelete(u.id, u.email)}
+                            className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-red-600 px-2 py-1 rounded hover:bg-red-50"
+                            title="删除用户">
+                            <Trash2 size={12} />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -504,6 +669,18 @@ export default function Settings() {
               </>
             )}
           </div>
+        ) : type === 'provinces' ? (
+          <ProvincesInput
+            value={val}
+            onChange={(newVal) => {
+              setEdited(prev => ({ ...prev, [key]: newVal }));
+              setEditingKey(key);
+            }}
+            onSave={() => handleSave(key)}
+            onCancel={() => cancelEdit(key)}
+            isModified={isModified}
+            saving={saving}
+          />
         ) : isEditing ? (
           <div className="flex gap-2">
             {type === 'json' ? (
@@ -687,6 +864,38 @@ export default function Settings() {
                 times: pushTimes, setTimes: setPushTimes,
                 editing: pushEditing, setEditing: setPushEditing, onSave: savePushSchedule,
               })}
+            </div>
+          )}
+
+          {/* 邮件服务 */}
+          {activeTab === 'email' && (
+            <div className="space-y-6">
+              <div className="bg-white rounded-xl border border-slate-200/80 p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Mail size={16} className="text-slate-700" />
+                  <h3 className="text-sm font-semibold text-slate-900">邮件服务 (SMTP)</h3>
+                </div>
+                <div className="space-y-4">
+                  {renderField({ key: 'email.smtp_host', label: 'SMTP 服务器', type: 'text', default: 'smtp.yunyou.top' })}
+                  {renderField({ key: 'email.smtp_port', label: '端口', type: 'text', default: '465' })}
+                  {renderField({ key: 'email.smtp_user', label: '邮箱账号', type: 'text' })}
+                  {renderField({ key: 'email.smtp_pass', label: '邮箱密码', type: 'password' })}
+                  {renderField({ key: 'email.from_address', label: '发件人地址', type: 'text' })}
+                </div>
+              </div>
+              <div className="bg-white rounded-xl border border-slate-200/80 p-5">
+                <h3 className="text-sm font-semibold text-slate-900 mb-3">邮件功能说明</h3>
+                <div className="space-y-2 text-sm text-slate-600">
+                  <p>• <strong>欢迎邮件</strong> — 创建用户时自动发送登录信息</p>
+                  <p>• <strong>密码重置通知</strong> — 重置密码后发送通知邮件</p>
+                  <p>• <strong>邮箱变更确认</strong> — 修改邮箱后发送确认邮件</p>
+                </div>
+                <div className="mt-4 p-3 bg-slate-50 rounded-lg">
+                  <p className="text-xs text-slate-500">
+                    使用企业邮箱 SMTP 发送邮件。请确保邮箱账号已开启 SMTP 服务。
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
