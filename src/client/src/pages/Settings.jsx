@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { radarApi } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
 import { Save, RefreshCw, Pencil, X, Plus, Trash2, Target, Tag, TrendingUp, Settings2 } from 'lucide-react';
 
 // ── cron ↔ 时间列表互转 ──────────────────────────────────
@@ -238,12 +239,13 @@ function KeywordStrategySection() {
 
 export default function Settings() {
   const { isAdmin } = useAuth();
+  const toast = useToast();
   const [config, setConfig] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [edited, setEdited] = useState({});
   const [editingKey, setEditingKey] = useState(null);
-  const [msg, setMsg] = useState('');
+  
   const [fetchTimes, setFetchTimes] = useState([]);
   const [fetchEditing, setFetchEditing] = useState(false);
   const [pushTimes, setPushTimes] = useState([]);
@@ -281,20 +283,20 @@ export default function Settings() {
   };
 
   const handleSave = async (key, rawValue) => {
-    setSaving(true); setMsg('');
+    setSaving(true);
     try {
       const val = rawValue !== undefined ? rawValue : parseValue(edited[key]);
       await radarApi.put(`/config/${encodeURIComponent(key)}`, { body: { value: val } });
-      setMsg(`已保存: ${key}`);
+      toast.success(`已保存: ${key}`);
       setEdited(prev => { const n = { ...prev }; delete n[key]; return n; });
       setEditingKey(null);
       fetchConfig();
-    } catch (err) { setMsg(`保存失败: ${err.message}`); }
+    } catch (err) { toast.error(`保存失败: ${err.message}`); }
     finally { setSaving(false); }
   };
 
   const handleSaveAll = async (fields) => {
-    setSaving(true); setMsg('');
+    setSaving(true);
     let ok = 0, fail = 0;
     for (const f of fields) {
       if (edited[f.key] === undefined) continue;
@@ -303,25 +305,25 @@ export default function Settings() {
         ok++;
       } catch { fail++; }
     }
-    setMsg(`保存完成: ${ok} 成功${fail ? `, ${fail} 失败` : ''}`);
+    toast.info(`保存完成: ${ok} 成功${fail ? `, ${fail} 失败` : ''}`);
     setEdited({}); setEditingKey(null); fetchConfig(); setSaving(false);
   };
 
   const saveFetchSchedule = async () => {
-    setSaving(true); setMsg('');
+    setSaving(true);
     try {
       await radarApi.put('/config/fetch.schedules', { body: { value: timesToCronArr(fetchTimes) } });
-      setMsg('已保存: 采集时间'); setFetchEditing(false); fetchConfig();
-    } catch (err) { setMsg(`保存失败: ${err.message}`); }
+      toast.success('已保存: 采集时间'); setFetchEditing(false); fetchConfig();
+    } catch (err) { toast.error(`保存失败: ${err.message}`); }
     finally { setSaving(false); }
   };
 
   const savePushSchedule = async () => {
-    setSaving(true); setMsg('');
+    setSaving(true);
     try {
       await radarApi.put('/config/push.schedule', { body: { value: timesToCronStr(pushTimes) } });
-      setMsg('已保存: 推送时间'); setPushEditing(false); fetchConfig();
-    } catch (err) { setMsg(`保存失败: ${err.message}`); }
+      toast.success('已保存: 推送时间'); setPushEditing(false); fetchConfig();
+    } catch (err) { toast.error(`保存失败: ${err.message}`); }
     finally { setSaving(false); }
   };
 
@@ -460,7 +462,6 @@ export default function Settings() {
         </button>
       </div>
 
-      {msg && <div className="mb-4 text-sm bg-green-50 text-green-700 rounded-lg px-3 py-2">{msg}</div>}
 
       {loading ? (
         <div className="text-center text-slate-500 py-8">加载中...</div>

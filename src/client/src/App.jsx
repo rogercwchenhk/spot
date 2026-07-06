@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './hooks/useAuth';
+import { ToastProvider } from './hooks/useToast';
+import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -38,30 +40,34 @@ function ProtectedRoute({ children, adminOnly = false }) {
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route
-              element={
-                <ProtectedRoute>
-                  <Layout />
-                </ProtectedRoute>
-              }
-            >
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route index element={<NoticeList />} />
-              <Route path="notices/:id" element={<NoticeDetail />} />
-              <Route path="search" element={<Search />} />
-              <Route path="qualifications" element={<Qualifications />} />
-              <Route path="platforms" element={<ProtectedRoute adminOnly><Platforms /></ProtectedRoute>} />
-              <Route path="settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
-            </Route>
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <ToastProvider>
+            <BrowserRouter>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route
+                  element={
+                    <ProtectedRoute>
+                      <Layout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route path="dashboard" element={<ErrorBoundary><Dashboard /></ErrorBoundary>} />
+                  <Route index element={<ErrorBoundary><NoticeList /></ErrorBoundary>} />
+                  <Route path="notices/:id" element={<ErrorBoundary><NoticeDetail /></ErrorBoundary>} />
+                  <Route path="search" element={<ErrorBoundary><Search /></ErrorBoundary>} />
+                  <Route path="qualifications" element={<ErrorBoundary><Qualifications /></ErrorBoundary>} />
+                  <Route path="platforms" element={<ProtectedRoute adminOnly><ErrorBoundary><Platforms /></ErrorBoundary></ProtectedRoute>} />
+                  <Route path="settings" element={<ProtectedRoute adminOnly><ErrorBoundary><Settings /></ErrorBoundary></ProtectedRoute>} />
+                </Route>
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              </Routes>
+            </BrowserRouter>
+          </ToastProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

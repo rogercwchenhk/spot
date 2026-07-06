@@ -2,14 +2,40 @@ import { useEffect, useState } from 'react';
 import { radarApi } from '../lib/api';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
-import { ArrowRight, SlidersHorizontal } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 const LEVEL_CONFIG = {
-  strong: { label: '强推', cls: 'badge-strong' },
-  yes: { label: '可以投', cls: 'badge-yes' },
-  risky: { label: '风险', cls: 'badge-risky' },
-  no: { label: '不建议', cls: 'badge-no' },
+  strong: { label: '强推', cls: 'badge-strong', barColor: 'bg-emerald-500' },
+  yes:    { label: '可以投', cls: 'badge-yes',    barColor: 'bg-sky-500' },
+  risky:  { label: '风险',   cls: 'badge-risky',  barColor: 'bg-amber-500' },
+  no:     { label: '不建议', cls: 'badge-no',     barColor: 'bg-rose-500' },
 };
+
+const SOURCE_LABELS = {
+  zhiliao: '知了',
+  scrapling: '爬虫',
+  qianlima: '千里马',
+  gdzzzb: '广东招标',
+};
+
+function MatchScoreBar({ match }) {
+  if (!match) return null;
+  const score = 100 - (match.total_deduction || 0);
+  const pct = Math.max(0, Math.min(100, score));
+  const levelCfg = LEVEL_CONFIG[match.recommend_level];
+
+  return (
+    <div className="flex items-center gap-2 mt-2">
+      <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+        <div
+          className={cn('h-full rounded-full transition-all', levelCfg?.barColor || 'bg-slate-300')}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="text-[11px] font-medium text-slate-500 tabular-nums w-7 text-right">{pct}</span>
+    </div>
+  );
+}
 
 export default function NoticeList() {
   const [notices, setNotices] = useState([]);
@@ -66,7 +92,7 @@ export default function NoticeList() {
         ))}
       </div>
 
-      {/* 标讯卡片列表 */}
+      {/* 列表 */}
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3, 4].map(i => (
@@ -78,53 +104,77 @@ export default function NoticeList() {
         </div>
       ) : notices.length === 0 ? (
         <div className="text-center py-16">
-          <p className="text-slate-400">暂无标讯数据</p>
+          <p className="text-sm text-slate-400">暂无标讯数据</p>
         </div>
       ) : (
         <div className="space-y-2.5">
           {notices.map(notice => {
             const match = Array.isArray(notice.match_result) ? notice.match_result[0] : notice.match_result;
             const levelInfo = match ? LEVEL_CONFIG[match.recommend_level] : null;
+            const sourceLabel = notice.data_source ? (SOURCE_LABELS[notice.data_source] || notice.data_source) : null;
 
             return (
               <Link
                 key={notice.id}
                 to={`/notices/${notice.id}`}
-                className="flex items-center gap-4 bg-white rounded-xl border border-slate-200/80 px-4 py-3.5 hover:border-indigo-200 hover:shadow-sm transition-all group"
+                className="block bg-white rounded-xl border border-slate-200/80 px-4 py-3.5 hover:border-indigo-200 hover:shadow-sm transition-all group"
               >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    {levelInfo && (
-                      <span className={cn('inline-block text-[11px] font-medium px-2 py-0.5 rounded-md', levelInfo.cls)}>
-                        {levelInfo.label}
-                      </span>
-                    )}
-                    {match && (
-                      <span className="text-[11px] text-slate-400">
-                        扣分 {match.total_deduction}
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="text-sm font-medium text-slate-800 line-clamp-1 group-hover:text-indigo-600 transition-colors">{notice.title}</h3>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-slate-400">
-                    {notice.budget_amount > 0 && <span>¥{notice.budget_amount}万</span>}
-                    <span>{notice.city || notice.region_scope || '-'}</span>
-                    {notice.end_date && <span>截止 {new Date(notice.end_date).toLocaleDateString('zh-CN')}</span>}
-                  </div>
-                  {notice.ai_extracted_fields?.tech_keywords?.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {notice.ai_extracted_fields.tech_keywords.slice(0, 4).map(kw => (
-                        <span key={kw} className="text-[11px] bg-slate-50 text-slate-500 px-2 py-0.5 rounded-md">
-                          {kw}
+                <div className="flex items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    {/* 标签行 */}
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                      {levelInfo && (
+                        <span className={cn('text-[11px] font-medium px-2 py-0.5 rounded-md', levelInfo.cls)}>
+                          {levelInfo.label}
                         </span>
-                      ))}
-                      {notice.ai_extracted_fields.tech_keywords.length > 4 && (
-                        <span className="text-[11px] text-slate-300">+{notice.ai_extracted_fields.tech_keywords.length - 4}</span>
+                      )}
+                      {match && (
+                        <span className="text-[11px] text-slate-400">
+                          扣分 {match.total_deduction}
+                        </span>
+                      )}
+                      {sourceLabel && (
+                        <span className="text-[11px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
+                          {sourceLabel}
+                        </span>
+                      )}
+                      {notice.notice_type && (
+                        <span className="text-[11px] text-slate-400">
+                          {notice.notice_type === 'tender' ? '招标' : notice.notice_type === 'result' ? '中标' : notice.notice_type}
+                        </span>
                       )}
                     </div>
-                  )}
+
+                    {/* 标题 */}
+                    <h3 className="text-sm font-medium text-slate-800 line-clamp-1 group-hover:text-indigo-600 transition-colors">{notice.title}</h3>
+
+                    {/* 元数据行 */}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-slate-400">
+                      {notice.budget_amount > 0 && <span>¥{notice.budget_amount}万</span>}
+                      <span>{notice.city || notice.region_scope || '-'}</span>
+                      {notice.end_date && <span>截止 {new Date(notice.end_date).toLocaleDateString('zh-CN')}</span>}
+                    </div>
+
+                    {/* 技术关键词 */}
+                    {notice.ai_extracted_fields?.tech_keywords?.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {notice.ai_extracted_fields.tech_keywords.slice(0, 4).map(kw => (
+                          <span key={kw} className="text-[11px] bg-slate-50 text-slate-500 px-2 py-0.5 rounded-md">
+                            {kw}
+                          </span>
+                        ))}
+                        {notice.ai_extracted_fields.tech_keywords.length > 4 && (
+                          <span className="text-[11px] text-slate-300">+{notice.ai_extracted_fields.tech_keywords.length - 4}</span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 匹配分数进度条 */}
+                    <MatchScoreBar match={match} />
+                  </div>
+
+                  <ArrowRight size={16} className="shrink-0 text-slate-300 group-hover:text-indigo-400 transition-colors mt-1" />
                 </div>
-                <ArrowRight size={16} className="shrink-0 text-slate-300 group-hover:text-indigo-400 transition-colors" />
               </Link>
             );
           })}
