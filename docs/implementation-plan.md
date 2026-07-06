@@ -1,7 +1,7 @@
 # 客户雷达 — 实施计划
 
-> 版本: v2.0 | 日期: 2026-07-03 | 基于 PRD v2.0 + 需求烤问结论
-> 状态: 待确认
+> 版本: v2.1 | 日期: 2026-07-06 | 基于 PRD v2.0 + 需求烤问结论
+> 状态: Phase 1-2 基本完成，前端 7 项改进已交付
 
 ---
 
@@ -317,12 +317,12 @@ async function notifyWeChat(notice, matchResult) {
 
 **目标：跑通全链路，企微群收到匹配标讯**
 
-- [ ] Supabase 建表迁移（bidding_notice 补充字段 + 资质表 + 匹配结果表）
+- [x] Supabase 建表迁移（23 个迁移文件，18+ 张表，66 条 RLS 策略）
 - [x] 知了标讯 API 对接：Node.js 定时任务，每天 12:00 和 23:00 拉取广东省 IT 运维类公告
-- [ ] 数据清洗入库：去重、字段映射、`ai_status = 0`
-- [x] AI Pipeline v2：元数据规则提取 + mimo AI 补充分类（已完成 226 条）
+- [x] 数据清洗入库：去重、字段映射、`ai_status = 0`
+- [x] AI Pipeline v2：元数据规则提取 + mimo AI 补充分类（已完成 449 条）
 - [x] 公司资质 + 人员资质数据录入（已录入 7 公司资质 + 11 人员资质）
-- [x] 匹配引擎 v2：五维能力匹配（已完成 226 条：7 strong / 54 yes / 122 risky / 43 no）
+- [x] 匹配引擎 v2：五维能力匹配（28 条已匹配：4 strong / 12 yes / 10 risky / 2 no）
 - [x] 企微群机器人 webhook 推送服务
 
 **交付物：** 后端全链路跑通（采集 → AI 提取 → 匹配 → 推送），CLI 可查询
@@ -332,23 +332,23 @@ async function notifyWeChat(notice, matchResult) {
 **目标：销售能用手机/CLI 看标讯和匹配结果，管理者能用 CLI/前端管理资质和平台**
 
 **PWA 前端：**
-- [ ] React + Vite + shadcn/ui + Tailwind CSS 项目初始化（含移动端响应式适配）
-- [ ] Supabase Auth 登录 + admin/viewer 角色控制
-- [ ] 标讯列表页：按推荐等级排序，筛选（等级/地区/时间/金额）
-- [ ] 标讯详情页：结构化信息 + 匹配结果 + 扣分明细 + 查看原文
-- [ ] 资质管理页：公司资质 + 人员资质 CRUD（admin 可编辑，viewer 只读）
-- [ ] 搜索页：关键词搜索（pg_trgm）
-- [ ] 平台管理页：招标平台数据库查看和管理（admin）
-- [ ] 设置页：推送配置（admin）
-- [ ] PWA 配置：manifest.json + Service Worker + 安装引导
+- [x] React + Vite + Tailwind CSS 项目初始化（含移动端响应式适配）
+- [x] Supabase Auth 登录 + admin/viewer 角色控制
+- [x] 标讯列表页：按推荐等级排序，筛选（等级），匹配分数进度条，来源标签
+- [x] 标讯详情页：结构化信息 + 匹配结果 + 扣分明细 + 查看原文
+- [x] 资质管理页：公司资质 + 人员资质 CRUD（admin 可编辑，viewer 只读）
+- [x] 搜索页：关键词搜索
+- [x] 平台管理页：招标平台数据库查看（只读，编辑功能待做）
+- [x] 设置页：推送/采集配置 + 关键词策略展示（admin）
+- [x] PWA 配置：manifest.json + Service Worker + 应用图标
 
 **CLI 工具：**
-- [ ] CLI 框架搭建（ 命令，Node.js）
-- [ ] 认证模块：，token 管理
-- [ ] Viewer CLI：
-- [ ] Admin CLI：
-- [ ] JSON 输出支持（），方便 AI Agent 解析
-- [ ] Codex Skill 集成： +  两个 Skill
+- [x] CLI 框架搭建（cr 命令，Commander.js）
+- [x] 认证模块：Supabase Auth，token 管理
+- [x] Viewer CLI：查询公告、搜索、匹配、查看资质
+- [x] Admin CLI：管理平台、配置、采集、关键词、详情爬取
+- [x] JSON 输出支持（--json），方便 AI Agent 解析
+- [x] Codex Skill 集成：cr-admin + cr-viewer 两个 Skill
 
 **交付物：** 可安装到手机主屏幕的 PWA 应用 + 双角色 CLI 工具
 
@@ -357,16 +357,16 @@ async function notifyWeChat(notice, matchResult) {
 
 **目标：自动下载免费招标文件，为后续精确匹配打基础**
 
-- [ ] Supabase Storage 创建 `bid-documents` bucket
-- [ ] 数据库迁移：`bid_document` 表（019_bid_document.sql）
-- [ ] 招标文件下载服务 `doc-downloader.js`：
+- [x] Supabase Storage 创建 `bid-documents` bucket
+- [x] 数据库迁移：`bid_document` 表（019_bid_document.sql）
+- [x] 招标文件下载服务 `doc-downloader.js`：
   - 知了中转页 HTML 解析 → 原站链接提取
   - PDF/Word 文件识别与下载
   - 上传 Supabase Storage + 元数据入库
-- [ ] API 接口：`POST /api/admin/notices/:id/download` + `download-batch`
-- [ ] CLI 命令：`cr admin notice:download <id>` + `--batch`
+- [x] API 接口：`POST /api/admin/notices/:id/download` + `download-batch`
+- [x] CLI 命令：`cr admin notice:download <id>` + `--batch`
 - [x] Pipeline 集成：采集后、AI 提取前插入下载步骤
-- [ ] 错误处理：下载失败标记状态，不影响主流程
+- [x] 错误处理：下载失败标记状态，不影响主流程
 
 **交付物：** 自动下载免费招标文件，存入 Supabase Storage，前端可查看/下载
 
@@ -393,69 +393,98 @@ async function notifyWeChat(notice, matchResult) {
 
 - [ ] 销售标注功能：已跟进 / 忽略 / 已投标
 - [ ] 中标公告录入和回顾分析
-- [ ] 企业自建平台爬虫（选 1-2 个低反爬平台先试点）
+- [x] 企业自建平台爬虫（Scrapling: 千里马 94 条 + 广东招标 174 条）
 - [ ] 资质到期预警
 - [ ] 标签筛选优化
 - [ ] 竞对分析
 
+### Phase 4: 前端打磨（2026-07-06 完成）
+
+**目标：前端从功能性可用升级到生产级体验**
+
+- [x] Dashboard 工作台首页（统计卡片 + 匹配分布 + 最近标讯 + 快捷入口）
+- [x] 全站视觉升级（slate + indigo 色系，卡片/徽章/按钮/表格统一）
+- [x] Toast 通知系统（useToast hook，success/error/info）
+- [x] ErrorBoundary 错误边界（每个路由独立兜底 + 全局顶层）
+- [x] 资质 CRUD 完善（新增/编辑弹窗、表单校验、删除确认）
+- [x] 标讯列表增强（匹配分数进度条、来源/类型标签）
+- [x] PWA 支持（manifest.json + Service Worker + 应用图标）
+- [x] 通用 Modal / ConfirmDialog 组件
+
+**交付物：** 生产级前端体验，销售可安装到手机主屏幕
+
+
 ---
 
-## 8. 文件结构
+## 8. Backlog（待排期）
+
+| # | 功能 | 说明 | 依赖 |
+|---|---|---|---|
+| B1 | 平台页编辑功能 | 平台管理页目前只读，需要支持新增/编辑/删除平台 | 后端 API 已有 |
+| B2 | 通知中心 | 顶栏 Bell 图标目前为空，需要展示采集结果/匹配通知/系统消息 | 通知表设计 |
+| B3 | 合同业绩库前端 | contracts 表和后端 API 已有，缺少前端页面 | 页面设计 |
+| B4 | 数据看板/报表 | 趋势图（标讯量/匹配率随时间变化）、时间段对比、导出 | 图表库选型 |
+| B5 | 销售标注功能 | 已跟进 / 忽略 / 已投标 状态标记 | notice_status 字段 |
+| B6 | 资质到期预警 | 资质到期前 30 天自动提醒 | 企微推送集成 |
+| B7 | 评分标准批量提取 | 已下载招标文件的评分标准自动提取 | Phase 2.6 基础 |
+
+
+---
+
+## 9. 文件结构
 
 ```
 customer radar/
-├── docs/
-│   ├── product-requirements.md
-│   ├── system-design.md
-│   ├── platform-registry.md
-│   ├── ai-prompt-templates.md
-│   └── implementation-plan.md    ← 本文件
-├── supabase/
-│   └── migrations/
-│       ├── 001_init_schema.sql
-│       ├── 002_platform_tech_profile.sql
-│       ├── 003_enrich_business_fields.sql
-│       ├── 004_expand_guangdong_platforms.sql
-│       ├── 005_qualification_tables.sql
-│       ├── 006_match_result_table.sql
-│       ├── 007_qualification_reference.sql
-│       ├── 008_qualification_ai_fields.sql
-│       ├── 009_ai_friendly_enhancements.sql
-│       ├── 010_seed_qualification_data.sql
-│       ├── 011_fix_rls_anon_read.sql
-│       ├── 012_company_contract.sql
-│       ├── 019_bid_document.sql         ← 新增：招标文件存储表
+├── docs/                          ← 设计文档（9 份）
+├── supabase/migrations/           ← 23 个 SQL 迁移 + pending.sql
+├── cli/                           ← CLI 工具（cr 命令，Commander.js）
+│   ├── index.js                   ← 入口，双角色注册
+│   ├── auth.js / api.js / format.js
+│   └── commands/
+│       ├── admin.js / viewer 命令组
+│       ├── keyword.js / crawl.js / match.js / qual.js
+│       ├── platform.js / config.js / contract.js / notice.js
+├── scripts/                       ← 辅助脚本（Scrapling、测试、种子数据）
 ├── src/
-│   ├── server/
+│   ├── server/                    ← Express 后端 (port 3200)
 │   │   ├── index.js
-│   │   ├── config.js
-│   │   ├── services/
-│   │   │   ├── zhiliao-api.js
-│   │   │   ├── ai-pipeline.js
-│   │   │   ├── match-engine.js
-│   │   │   ├── wecom-notify.js
-│   │   │   ├── doc-downloader.js  ← 新增：招标文件下载服务
-│   │   │   └── scheduler.js
-│   │   └── routes/
-│   │       ├── notices.js
-│   │       ├── qualifications.js
-│   │       └── match.js
-│   └── client/
+│   │   ├── config.js / db.js
+│   │   ├── middleware/auth.js
+│   │   ├── routes/
+│   │   │   ├── dashboard.js       ← 新增：Dashboard 统计接口
+│   │   │   ├── notices.js / match.js / qualifications.js
+│   │   │   ├── platforms.js / contracts.js / config.js
+│   │   │   ├── admin.js / auth.js / crawl.js
+│   │   └── services/
+│   │       ├── zhiliao-api.js / scrapling-client.js
+│   │       ├── ai-pipeline.js / match-engine.js
+│   │       ├── keyword-report.js / keyword-tuner.js
+│   │       ├── ingestion.js / scheduler.js
+│   │       ├── doc-downloader.js / scoring-extractor.js
+│   │       ├── wecom-notify.js / qianlima-detail.js
+│   │       └── config-reader.js
+│   └── client/                    ← React PWA 前端 (Vite)
 │       ├── index.html
-│       ├── src/
-│       │   ├── App.jsx
-│       │   ├── pages/
-│       │   │   ├── NoticeList.jsx
-│       │   │   ├── NoticeDetail.jsx
-│       │   │   ├── QualificationManage.jsx
-│       │   │   └── Search.jsx
-│       │   ├── components/
-│       │   └── utils/
-│       ├── manifest.json
-│       └── vite.config.js
-├── package.json
-├── .env
-└── .env.example
+│       ├── public/
+│       │   ├── manifest.json / sw.js
+│       │   ├── icon-192.png / icon-512.png / apple-touch-icon.png
+│       └── src/
+│           ├── App.jsx
+│           ├── main.jsx           ← SW 注册
+│           ├── hooks/
+│           │   ├── useAuth.jsx / useToast.jsx
+│           ├── components/
+│           │   ├── Layout.jsx / ErrorBoundary.jsx / Modal.jsx
+│           ├── pages/
+│           │   ├── Dashboard.jsx  ← 新增：工作台首页
+│           │   ├── NoticeList.jsx / NoticeDetail.jsx
+│           │   ├── Search.jsx / Qualifications.jsx
+│           │   ├── Platforms.jsx / Settings.jsx / Login.jsx
+│           └── lib/
+│               ├── api.js / supabase.js / utils.js
+├── tests/                         ← 测试脚本
+├── package.json / .env / .env.example
+└── typescript                     ← TypeScript 配置（预留）
 ```
 
 ---

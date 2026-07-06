@@ -1,7 +1,7 @@
 # 客户雷达 — 前端设计文档
 
-> 版本: v1.0 | 日期: 2026-07-03 | 基于实施计划 v2.0
-> 状态: 待审批
+> 版本: v1.1 | 日期: 2026-07-06 | 基于实施计划 v2.1
+> 状态: Phase 4 前端已交付，backlog 待排期
 
 ---
 
@@ -728,32 +728,34 @@ Supabase 发送重置邮件（含一次性链接）
 
 ---
 
-## 7. PWA 配置
+## 7. PWA 配置（已完成）
 
-### 6.1 manifest.json
+### 7.1 manifest.json
 
 ```json
 {
   "name": "客户雷达",
   "short_name": "客户雷达",
-  "description": "广东励康标讯情报系统",
-  "start_url": "/",
+  "description": "广东励康标讯情报系统 — 招标公告采集、AI 提取、资格匹配",
+  "start_url": "/dashboard",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#18181b",
+  "orientation": "any",
+  "background_color": "#f8fafc",
+  "theme_color": "#4f46e5",
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ]
 }
 ```
 
-### 6.2 Service Worker 策略
+### 7.2 Service Worker 策略
 
-- 离线缓存最近 7 天标讯数据
-- 静态资源预缓存（JS/CSS/字体）
-- API 请求 Network First，失败时回退缓存
-- iOS Safari 兼容：不支持推送通知，用 Badge API 提示新标讯数量
+- API 请求：Network First，离线时返回 503 JSON 错误
+- 静态资源：Stale-while-revalidate（先返回缓存，后台更新）
+- 应用图标：indigo 圆角方块 + 白色 R 字母（192/512/180-apple-touch）
+- index.html：apple-mobile-web-app-capable、viewport-fit=cover
 
 ---
 
@@ -761,6 +763,7 @@ Supabase 发送重置邮件（含一次性链接）
 
 | 接口 | 方法 | 说明 |
 |---|---|---|
+| `/api/dashboard/stats` | GET | Dashboard 统计数据（总数、今日新增、匹配分布、最近标讯） |
 | `/api/notices` | GET | 标讯列表（分页、筛选、排序） |
 | `/api/notices/:id` | GET | 标讯详情 + 匹配结果 |
 | `/api/notices/search` | GET | 关键词搜索 |
@@ -913,6 +916,15 @@ cr logout
 | 3 | ~~资质类型枚举需要预设哪些？~~ | ✅ 已确认：公司资质 / 人员资质两大类，qual_type 自由填写 |
 | 4 | ~~admin 账号初始密码如何设置？~~ | ✅ 已确认：初始账号 admin@leadcom.chat，密码见 .env |
 | 5 | ~~是否需要支持忘记密码/重置密码？~~ | ✅ 已确认：支持，使用 Supabase Auth 内置重置流程 |
+
+## 10.1 Backlog（待排期）
+
+| # | 功能 | 说明 | 依赖 |
+|---|---|---|---|
+| B1 | 平台页编辑功能 | 平台管理页目前只读，需要支持新增/编辑/删除平台 | 后端 API 已有 |
+| B2 | 通知中心 | 顶栏 Bell 图标目前为空，需要展示采集结果/匹配通知/系统消息 | 通知表设计 |
+| B3 | 合同业绩库前端 | contracts 表和后端 API 已有，缺少前端页面 | 页面设计 |
+| B4 | 数据看板/报表 | 趋势图（标讯量/匹配率随时间变化）、时间段对比、导出 | 图表库选型 |
 │  │ 📤 企微推送                                                 │ │
 │  │                                                             │ │
 │  │  启用推送          [━━━━━●]  开启                          │ │
