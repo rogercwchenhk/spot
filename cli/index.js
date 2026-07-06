@@ -38,7 +38,7 @@ program
   .version('1.0.0')
   .option('--json', 'JSON输出模式（供AI Agent使用）')
   .option('--token <token>', 'API Token')
-  .option('--server <server>', '后端地址', 'http://localhost:3000');
+  .option('--server <server>', '后端地址', 'http://localhost:3200');
 
 // 初始化API客户端
 function getAPI() {
@@ -57,6 +57,8 @@ const qualCmd = require('./commands/qual');
 const contractCmd = require('./commands/contract');
 const platformCmd = require('./commands/platform');
 const adminCmd = require('./commands/admin');
+const emailCmd = require('./commands/email');
+const userCmd = require('./commands/user');
 
 const api = getAPI();
 
@@ -75,6 +77,8 @@ qualCmd.register(admin, api);
 contractCmd.register(admin, api);
 platformCmd.register(admin, api);
 adminCmd.register(admin, api);
+admin.addCommand(emailCmd);
+admin.addCommand(userCmd);
 
 // stats 命令（viewer级别）
 program

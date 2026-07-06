@@ -7,7 +7,7 @@ const { URL } = require('url');
 
 class CrAPI {
   constructor(server, token) {
-    this.server = server || process.env.CR_SERVER || 'http://localhost:3000';
+    this.server = server || process.env.CR_SERVER || 'http://localhost:3200';
     this.token = token || process.env.CR_TOKEN || '';
   }
 

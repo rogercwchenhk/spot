@@ -180,8 +180,9 @@ export default function Contracts() {
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-xl border border-slate-200/80 overflow-x-auto">
-            <table className="w-full text-sm min-w-[720px]">
+          {/* 桌面端：表格视图 */}
+          <div className="hidden md:block bg-white rounded-xl border border-slate-200/80 overflow-hidden">
+            <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100">
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">项目名称</th>
@@ -222,6 +223,35 @@ export default function Contracts() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* 移动端：卡片视图 */}
+          <div className="md:hidden space-y-3">
+            {contracts.map(c => (
+              <div key={c.id} className="bg-white rounded-xl border border-slate-200/80 p-4">
+                <h3 className="font-medium text-slate-800 text-sm truncate">{c.project_name}</h3>
+                <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
+                  <div><span className="text-slate-500">甲方:</span> <span className="text-slate-700">{c.client_name || '-'}</span></div>
+                  <div><span className="text-slate-500">金额:</span> <span className="text-slate-700 tabular-nums">{c.contract_amount ? Number(c.contract_amount).toFixed(0) + '万' : '-'}</span></div>
+                  <div><span className="text-slate-500">类型:</span> <span className="text-slate-700">{c.service_type || '-'}</span></div>
+                  <div><span className="text-slate-500">行业:</span> <span className="text-slate-700">{c.industry || '-'}</span></div>
+                  <div><span className="text-slate-500">地区:</span> <span className="text-slate-700">{c.region || '-'}</span></div>
+                  <div><span className="text-slate-500">合同期:</span> <span className="text-slate-700">{c.start_date && c.end_date ? `${c.start_date} ~ ${c.end_date}` : c.start_date || c.end_date || '-'}</span></div>
+                </div>
+                {isAdmin && (
+                  <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t border-slate-100">
+                    <button onClick={() => { setEditing(c); setFormOpen(true); }}
+                      className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-indigo-600 px-2 py-1 rounded hover:bg-indigo-50 transition-colors">
+                      <Pencil size={12} /> 编辑
+                    </button>
+                    <button onClick={() => setConfirmDelete(c)}
+                      className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-rose-500 px-2 py-1 rounded hover:bg-rose-50 transition-colors">
+                      <Trash2 size={12} /> 删除
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
 
           {totalPages > 1 && (

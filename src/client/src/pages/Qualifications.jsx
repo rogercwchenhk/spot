@@ -236,67 +236,110 @@ export default function Qualifications() {
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-slate-200/80 overflow-x-auto">
-          <table className="w-full text-sm min-w-[640px]">
-            <thead>
-              <tr className="border-b border-slate-100">
-                {tab === 'company' ? (
-                  <>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">类型</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">名称</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">等级</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">证书编号</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">有效期</th>
-                  </>
-                ) : (
-                  <>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">姓名</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">类型</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">证书名称</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">证书编号</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">有效期</th>
-                  </>
-                )}
-                {canManageQualifications && <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">操作</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {currentData.map(item => (
-                <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+        <>
+          {/* 桌面端：表格视图 */}
+          <div className="hidden md:block bg-white rounded-xl border border-slate-200/80 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100">
                   {tab === 'company' ? (
                     <>
-                      <td className="px-4 py-3 text-slate-600">{item.qual_type}</td>
-                      <td className="px-4 py-3 font-medium text-slate-800">{item.qual_name}</td>
-                      <td className="px-4 py-3 text-slate-600">{item.qual_level || '-'}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-slate-500">{item.cert_number || '-'}</td>
-                      <td className="px-4 py-3 text-xs text-slate-500">{item.expiry_date || '永久'}</td>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">类型</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">名称</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">等级</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">证书编号</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">有效期</th>
                     </>
                   ) : (
                     <>
-                      <td className="px-4 py-3 font-medium text-slate-800">{item.person_name}</td>
-                      <td className="px-4 py-3 text-slate-600">{item.qual_type}</td>
-                      <td className="px-4 py-3 text-slate-600">{item.qual_name}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-slate-500">{item.cert_number || '-'}</td>
-                      <td className="px-4 py-3 text-xs text-slate-500">{item.expiry_date || '永久'}</td>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">姓名</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">类型</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">证书名称</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">证书编号</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">有效期</th>
                     </>
                   )}
-                  {canManageQualifications && (
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <button onClick={() => handleEdit(item)}
-                        className="text-slate-400 hover:text-indigo-600 mr-2 transition-colors" title="编辑">
-                        <Pencil size={14} />
-                      </button>
-                      <button onClick={() => setConfirmDelete(item)}
-                        className="text-slate-400 hover:text-rose-500 transition-colors" title="删除">
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
-                  )}
+                  {canManageQualifications && <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">操作</th>}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {currentData.map(item => (
+                  <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                    {tab === 'company' ? (
+                      <>
+                        <td className="px-4 py-3 text-slate-600">{item.qual_type}</td>
+                        <td className="px-4 py-3 font-medium text-slate-800">{item.qual_name}</td>
+                        <td className="px-4 py-3 text-slate-600">{item.qual_level || '-'}</td>
+                        <td className="px-4 py-3 font-mono text-xs text-slate-500">{item.cert_number || '-'}</td>
+                        <td className="px-4 py-3 text-xs text-slate-500">{item.expiry_date || '永久'}</td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-4 py-3 font-medium text-slate-800">{item.person_name}</td>
+                        <td className="px-4 py-3 text-slate-600">{item.qual_type}</td>
+                        <td className="px-4 py-3 text-slate-600">{item.qual_name}</td>
+                        <td className="px-4 py-3 font-mono text-xs text-slate-500">{item.cert_number || '-'}</td>
+                        <td className="px-4 py-3 text-xs text-slate-500">{item.expiry_date || '永久'}</td>
+                      </>
+                    )}
+                    {canManageQualifications && (
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <button onClick={() => handleEdit(item)}
+                          className="text-slate-400 hover:text-indigo-600 mr-2 transition-colors" title="编辑">
+                          <Pencil size={14} />
+                        </button>
+                        <button onClick={() => setConfirmDelete(item)}
+                          className="text-slate-400 hover:text-rose-500 transition-colors" title="删除">
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* 移动端：卡片视图 */}
+          <div className="md:hidden space-y-3">
+            {currentData.map(item => (
+              <div key={item.id} className="bg-white rounded-xl border border-slate-200/80 p-4">
+                <h3 className="font-medium text-slate-800 text-sm">
+                  {tab === 'company' ? item.qual_name : item.person_name}
+                </h3>
+                <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
+                  {tab === 'company' ? (
+                    <>
+                      <div><span className="text-slate-500">类型:</span> <span className="text-slate-700">{item.qual_type}</span></div>
+                      <div><span className="text-slate-500">等级:</span> <span className="text-slate-700">{item.qual_level || '-'}</span></div>
+                      <div><span className="text-slate-500">编号:</span> <span className="text-slate-700 font-mono">{item.cert_number || '-'}</span></div>
+                      <div><span className="text-slate-500">有效期:</span> <span className="text-slate-700">{item.expiry_date || '永久'}</span></div>
+                    </>
+                  ) : (
+                    <>
+                      <div><span className="text-slate-500">类型:</span> <span className="text-slate-700">{item.qual_type}</span></div>
+                      <div><span className="text-slate-500">证书:</span> <span className="text-slate-700">{item.qual_name}</span></div>
+                      <div><span className="text-slate-500">编号:</span> <span className="text-slate-700 font-mono">{item.cert_number || '-'}</span></div>
+                      <div><span className="text-slate-500">有效期:</span> <span className="text-slate-700">{item.expiry_date || '永久'}</span></div>
+                    </>
+                  )}
+                </div>
+                {canManageQualifications && (
+                  <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t border-slate-100">
+                    <button onClick={() => handleEdit(item)}
+                      className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-indigo-600 px-2 py-1 rounded hover:bg-indigo-50 transition-colors">
+                      <Pencil size={12} /> 编辑
+                    </button>
+                    <button onClick={() => setConfirmDelete(item)}
+                      className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-rose-500 px-2 py-1 rounded hover:bg-rose-50 transition-colors">
+                      <Trash2 size={12} /> 删除
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {/* 新增/编辑弹窗 */}

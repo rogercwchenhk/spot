@@ -82,7 +82,7 @@ export default function Platforms() {
 
   const fetch = useCallback(() => {
     setLoading(true);
-    radarApi.get('/platforms').then(res => setPlatforms(res.data || []))
+    radarApi.get('/platforms', { params: { pageSize: 200 } }).then(res => setPlatforms(res.data || []))
       .catch(err => toast.error('加载失败: ' + err.message)).finally(() => setLoading(false));
   }, []);
 
@@ -143,52 +143,91 @@ export default function Platforms() {
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">平台名称</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">URL</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">类型</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">反爬等级</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">状态</th>
-                {isAdmin && <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">操作</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {platforms.map(p => (
-                <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-4 py-3 font-medium text-slate-800">{p.platform_name}</td>
-                  <td className="px-4 py-3">
+        <>
+          {/* 桌面端：表格视图 */}
+          <div className="hidden md:block bg-white rounded-xl border border-slate-200/80 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100">
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">平台名称</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">URL</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">类型</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">反爬等级</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">状态</th>
+                  {isAdmin && <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">操作</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {platforms.map(p => (
+                  <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-4 py-3 font-medium text-slate-800">{p.platform_name}</td>
+                    <td className="px-4 py-3">
+                      <a href={p.base_url} target="_blank" rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 max-w-[200px] truncate transition-colors">
+                        {p.base_url}
+                      </a>
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{p.platform_type}</td>
+                    <td className="px-4 py-3 text-slate-600">{p.anti_bot_level || '-'}</td>
+                    <td className="px-4 py-3">
+                      <span className={cn('text-xs font-medium px-2.5 py-1 rounded-md', p.is_active ? 'badge-active' : 'badge-expired')}>
+                        {p.is_active ? '已接入' : '未启用'}
+                      </span>
+                    </td>
+                    {isAdmin && (
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <button onClick={() => { setEditing(p); setFormOpen(true); }}
+                          className="text-slate-400 hover:text-indigo-600 mr-2 transition-colors" title="编辑">
+                          <Pencil size={14} />
+                        </button>
+                        <button onClick={() => setConfirmDelete(p)}
+                          className="text-slate-400 hover:text-rose-500 transition-colors" title="删除">
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* 移动端：卡片视图 */}
+          <div className="md:hidden space-y-3">
+            {platforms.map(p => (
+              <div key={p.id} className="bg-white rounded-xl border border-slate-200/80 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-slate-800 text-sm truncate">{p.platform_name}</h3>
                     <a href={p.base_url} target="_blank" rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 max-w-[200px] truncate transition-colors">
+                      className="text-xs text-indigo-600 hover:text-indigo-700 truncate block mt-1">
                       {p.base_url}
                     </a>
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{p.platform_type}</td>
-                  <td className="px-4 py-3 text-slate-600">{p.anti_bot_level || '-'}</td>
-                  <td className="px-4 py-3">
-                    <span className={cn('text-xs font-medium px-2.5 py-1 rounded-md', p.is_active ? 'badge-active' : 'badge-expired')}>
-                      {p.is_active ? '已接入' : '未启用'}
-                    </span>
-                  </td>
-                  {isAdmin && (
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <button onClick={() => { setEditing(p); setFormOpen(true); }}
-                        className="text-slate-400 hover:text-indigo-600 mr-2 transition-colors" title="编辑">
-                        <Pencil size={14} />
-                      </button>
-                      <button onClick={() => setConfirmDelete(p)}
-                        className="text-slate-400 hover:text-rose-500 transition-colors" title="删除">
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+                  <span className={cn('text-xs font-medium px-2 py-1 rounded-md shrink-0', p.is_active ? 'badge-active' : 'badge-expired')}>
+                    {p.is_active ? '已接入' : '未启用'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-4 mt-3 text-xs text-slate-500">
+                  <span>类型: {p.platform_type}</span>
+                  {p.anti_bot_level && <span>反爬: {p.anti_bot_level}</span>}
+                </div>
+                {isAdmin && (
+                  <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t border-slate-100">
+                    <button onClick={() => { setEditing(p); setFormOpen(true); }}
+                      className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-indigo-600 px-2 py-1 rounded hover:bg-indigo-50 transition-colors">
+                      <Pencil size={12} /> 编辑
+                    </button>
+                    <button onClick={() => setConfirmDelete(p)}
+                      className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-rose-500 px-2 py-1 rounded hover:bg-rose-50 transition-colors">
+                      <Trash2 size={12} /> 删除
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       <PlatformFormModal open={formOpen} onClose={() => setFormOpen(false)} onSave={handleSave} initial={editing} />
