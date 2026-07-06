@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { cn } from '../lib/utils';
 import Modal, { ConfirmDialog } from '../components/Modal';
-import { Plus, Pencil, Trash2, Save, ExternalLink } from 'lucide-react';
+import { Plus, Pencil, Trash2, Save } from 'lucide-react';
 
 const PLATFORM_FIELDS = [
   { key: 'platform_name', label: '平台名称', placeholder: '千里马', required: true },

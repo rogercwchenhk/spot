@@ -143,7 +143,7 @@ export default function Dashboard() {
     return <div className="text-center text-slate-400 py-16">数据加载失败</div>;
   }
 
-  const { totalNotices, todayNew, matchDistribution, matchRate, recentNotices, platformCount, qualCount } = stats;
+  const { totalNotices, todayNew, matchDistribution, matchRate, recentNotices, platformCount } = stats;
   const strongCount = matchDistribution?.strong || 0;
 
   return (

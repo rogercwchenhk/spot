@@ -11,10 +11,6 @@ const LEVEL_CONFIG = {
   no: { label: '不建议', cls: 'badge-no', accent: 'bg-rose-50 text-rose-700' },
 };
 
-const DIM_COLORS = [
-  'bg-indigo-500', 'bg-emerald-500', 'bg-sky-500', 'bg-amber-500', 'bg-rose-500',
-];
-
 export default function NoticeDetail() {
   const { id } = useParams();
   const [notice, setNotice] = useState(null);

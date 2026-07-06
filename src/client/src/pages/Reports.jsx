@@ -3,13 +3,11 @@ import { radarApi } from '../lib/api';
 import { cn } from '../lib/utils';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, AreaChart, Area,
+  PieChart, Pie, Cell, AreaChart, Area,
 } from 'recharts';
 import { TrendingUp, PieChart as PieIcon, MapPin } from 'lucide-react';
 
 const COLORS = ['#4f46e5', '#0ea5e9', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6', '#06b6d4', '#84cc16'];
-const LEVEL_COLORS = { strong: '#10b981', yes: '#0ea5e9', risky: '#f59e0b', no: '#f43f5e' };
-
 function ChartCard({ title, icon: Icon, children, wide }) {
   return (
     <div className={cn('bg-white rounded-xl border border-slate-200/80 p-5', wide && 'lg:col-span-2')}>

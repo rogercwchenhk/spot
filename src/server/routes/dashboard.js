@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { supabaseAdmin } = require('../db');
+const { requireAuth } = require('../middleware/auth');
+
+// All dashboard routes require authentication
+router.use(requireAuth);
 
 // GET /api/dashboard/stats - 仪表盘统计数据
 router.get('/stats', async (req, res) => {

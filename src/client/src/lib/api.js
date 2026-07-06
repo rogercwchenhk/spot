@@ -23,14 +23,22 @@ function createApiClient({ baseURL, getToken }) {
     const token = getToken ? await getToken() : null;
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    const res = await fetch(url, {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-    });
+    const fetchOpts = { method, headers };
+    if (body && method !== 'GET') fetchOpts.body = JSON.stringify(body);
 
+    const res = await fetch(url, fetchOpts);
     const json = await res.json();
+
     if (!res.ok) {
+      // 401 = token expired or invalid -> clear session and reload
+      if (res.status === 401) {
+        try {
+          const { supabase } = await import('./supabase.js');
+          await supabase.auth.signOut();
+        } catch (e) { void e; }
+        window.location.href = '/login';
+        return; // unreachable but satisfies flow
+      }
       const err = new Error(json.error || `HTTP ${res.status}`);
       err.status = res.status;
       err.data = json;

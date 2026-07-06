@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import {
   LayoutDashboard, ClipboardList, Search, Award, FileText, BarChart3,
-  Globe, Settings, LogOut, Menu, X, User, MoreHorizontal, WifiOff,
+  Globe, Settings, LogOut, Menu, X, MoreHorizontal, WifiOff,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import NotificationBell from './NotificationBell';

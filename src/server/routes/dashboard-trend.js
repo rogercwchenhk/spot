@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { supabaseAdmin } = require('../db');
+const { requireAuth } = require('../middleware/auth');
+
+// Dashboard trend requires authentication
+router.use(requireAuth);
 
 // GET /api/dashboard/trend - 趋势数据（最近 30 天）
 router.get('/trend', async (req, res) => {
