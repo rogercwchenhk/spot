@@ -182,6 +182,7 @@ export default function Qualifications() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null); // null = create, object = edit
   const [confirmDelete, setConfirmDelete] = useState(null); // item to delete
+  const [selectedForImages, setSelectedForImages] = useState(null); // 选中查看图片的记录
 
   const fetchQuals = useCallback(() => {
     setLoading(true);
@@ -339,8 +340,12 @@ export default function Qualifications() {
                           <Pencil size={14} />
                         </button>
                         <button onClick={() => setConfirmDelete(item)}
-                          className="text-slate-400 hover:text-rose-500 transition-colors" title="删除">
+                          className="text-slate-400 hover:text-rose-500 mr-2 transition-colors" title="删除">
                           <Trash2 size={14} />
+                        </button>
+                        <button onClick={() => setSelectedForImages(item)}
+                          className={cn("transition-colors", selectedForImages?.id === item.id ? "text-indigo-600" : "text-slate-400 hover:text-indigo-600")} title="查看图片">
+                          <ImageIcon size={14} />
                         </button>
                       </td>
                     )}
@@ -384,6 +389,10 @@ export default function Qualifications() {
                       className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-rose-500 px-2 py-1 rounded hover:bg-rose-50 transition-colors">
                       <Trash2 size={12} /> 删除
                     </button>
+                    <button onClick={() => setSelectedForImages(item)}
+                      className={cn("inline-flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors", selectedForImages?.id === item.id ? "text-indigo-600 bg-indigo-50" : "text-slate-500 hover:text-indigo-600 hover:bg-indigo-50")}>
+                      <ImageIcon size={12} /> 图片
+                    </button>
                   </div>
                 )}
               </div>
@@ -397,8 +406,8 @@ export default function Qualifications() {
         <div className="mt-6 bg-white rounded-xl border border-slate-200/80 p-5">
           <QualImageManager
             qualType={tab}
-            qualId={editing?.id}
-            qualName={editing?.qual_name || editing?.person_name || ''}
+            qualId={selectedForImages?.id}
+            qualName={selectedForImages?.qual_name || selectedForImages?.person_name || ''}
           />
         </div>
       )}
