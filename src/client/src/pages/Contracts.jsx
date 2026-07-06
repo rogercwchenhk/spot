@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { radarApi } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
+import { useDebouncedState } from '../hooks/useDebounce';
 import { cn } from '../lib/utils';
 import { ResponsiveCard, CardField, CardAction, ResponsiveTableContainer, ResponsiveCardList } from '../components/ResponsiveCard';
 import Modal, { ConfirmDialog } from '../components/Modal';
@@ -83,14 +84,12 @@ export default function Contracts() {
   const [contracts, setContracts] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const pageSize = 20;
-  const debounceRef = useRef(null);
-  const [debouncedKeyword, setDebouncedKeyword] = useState('');
+  const [keyword, setKeyword, debouncedKeyword] = useDebouncedState('', 300);
 
   const fetchData = useCallback(() => {
     setLoading(true);
@@ -104,8 +103,7 @@ export default function Contracts() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Cleanup debounce timer on unmount
-  useEffect(() => () => clearTimeout(debounceRef.current), []);
+
 
   const handleSave = async (form) => {
     if (editing) {
@@ -152,8 +150,7 @@ export default function Contracts() {
               const val = e.target.value;
               setKeyword(val);
               setPage(1);
-              clearTimeout(debounceRef.current);
-              debounceRef.current = setTimeout(() => setDebouncedKeyword(val), 300);
+              setKeyword(val);
             }}
             placeholder="搜索项目名/甲方..."
             className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors" />

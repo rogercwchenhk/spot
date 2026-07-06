@@ -1,14 +1,17 @@
 {
   "name": "customer-radar",
   "version": "1.0.0",
-  "description": "客户雷达 — AI-Friendly 招投标数据平台",
+  "description": "\u5ba2\u6237\u96f7\u8fbe \u2014 AI-Friendly \u62db\u6295\u6807\u6570\u636e\u5e73\u53f0",
   "main": "src/server/index.js",
   "scripts": {
     "start": "node src/server/index.js",
     "dev": "node --watch src/server/index.js",
     "fetch": "node src/server/jobs/fetch-notices.js",
     "test": "node src/server/test-api.js",
-    "cli": "node cli/index.js"
+    "cli": "node cli/index.js",
+    "lint": "eslint src/client/src/**/*.{js,jsx} --fix",
+    "lint:check": "eslint src/client/src/**/*.{js,jsx}",
+    "test:unit": "node tests/unit/*.test.js"
   },
   "keywords": [
     "bidding",
@@ -36,5 +39,11 @@
   },
   "bin": {
     "cr": "cli/index.js"
+  },
+  "devDependencies": {
+    "eslint": "^8.50.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-import": "^2.28.1"
   }
 }

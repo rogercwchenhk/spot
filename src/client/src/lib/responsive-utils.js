@@ -209,3 +209,74 @@ export default {
   isTablet,
   isDesktop,
 };
+
+// ============================================================
+// 安全区适配
+// ============================================================
+
+/**
+ * 安全区类名
+ */
+export const SAFE_AREA = {
+  // 底部安全区内边距
+  paddingBottom: 'safe-area-pb',
+  // 底部安全区外边距
+  marginBottom: 'safe-area-mb',
+  // 顶部安全区内边距
+  paddingTop: 'safe-area-pt',
+  // 顶部安全区外边距
+  marginTop: 'safe-area-mt',
+};
+
+/**
+ * 获取安全区内边距样式
+ * @param {string} direction - 方向 (top/right/bottom/left)
+ * @returns {Object} 样式对象
+ */
+export function getSafeAreaStyle(direction = 'bottom') {
+  const property = `padding${direction.charAt(0).toUpperCase() + direction.slice(1)}`;
+  return {
+    [property]: `env(safe-area-inset-${direction}, 0px)`,
+  };
+}
+
+/**
+ * 获取安全区内边距类名
+ * @param {string} direction - 方向 (top/right/bottom/left)
+ * @returns {string} 类名
+ */
+export function getSafeAreaClass(direction = 'bottom') {
+  const prefix = direction === 'bottom' ? 'pb' : direction === 'top' ? 'pt' : direction === 'left' ? 'pl' : 'pr';
+  return `safe-area-${prefix}`;
+}
+
+/**
+ * 检测是否支持安全区
+ * @returns {boolean}
+ */
+export function supportsSafeArea() {
+  if (typeof window === 'undefined') return false;
+  return CSS.supports('padding-bottom', 'env(safe-area-inset-bottom)');
+}
+
+export default {
+  BREAKPOINTS,
+  DISPLAY,
+  GRID,
+  GAP,
+  PADDING,
+  TEXT,
+  CONTAINER,
+  SAFE_AREA,
+  mergeResponsiveClasses,
+  getResponsiveGrid,
+  getResponsiveGap,
+  getResponsivePadding,
+  getCurrentBreakpoint,
+  isMobile,
+  isTablet,
+  isDesktop,
+  getSafeAreaStyle,
+  getSafeAreaClass,
+  supportsSafeArea,
+};
