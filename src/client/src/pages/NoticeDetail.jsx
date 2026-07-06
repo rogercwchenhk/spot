@@ -97,6 +97,7 @@ export default function NoticeDetail() {
                   onChange={(e) => updateStatus(e.target.value)}
                   disabled={saving}
                   className="text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 disabled:opacity-50"
+                  aria-label="标讯状态"
                 >
                   {STATUS_OPTIONS.map(opt => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>

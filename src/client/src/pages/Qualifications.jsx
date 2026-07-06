@@ -348,15 +348,15 @@ export default function Qualifications() {
                     {canManageQualifications && (
                       <td className="px-4 py-3 text-right whitespace-nowrap">
                         <button onClick={() => handleEdit(item)}
-                          className="text-slate-400 hover:text-indigo-600 mr-2 transition-colors" title="编辑">
+                          className="text-slate-400 hover:text-indigo-600 mr-2 transition-colors" aria-label="编辑">
                           <Pencil size={14} />
                         </button>
                         <button onClick={() => setConfirmDelete(item)}
-                          className="text-slate-400 hover:text-rose-500 mr-2 transition-colors" title="删除">
+                          className="text-slate-400 hover:text-rose-500 mr-2 transition-colors" aria-label="删除">
                           <Trash2 size={14} />
                         </button>
                         <button onClick={() => setSelectedForImages(item)}
-                          className={cn("transition-colors", selectedForImages?.id === item.id ? "text-indigo-600" : "text-slate-400 hover:text-indigo-600")} title="查看图片">
+                          className={cn("transition-colors", selectedForImages?.id === item.id ? "text-indigo-600" : "text-slate-400 hover:text-indigo-600")} aria-label="查看图片">
                           <ImageIcon size={14} />
                         </button>
                       </td>

@@ -63,10 +63,11 @@ export default function NotificationBell() {
       <button
         onClick={() => { setOpen(!open); if (!open) fetchNotifications(); }}
         className="relative p-2 text-slate-400 hover:text-slate-600 transition-colors rounded-lg hover:bg-slate-100"
+        aria-label={`通知${unreadCount > 0 ? ` (${unreadCount}条未读)` : ""}`}
       >
         <Bell size={18} />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 w-4 h-4 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+          <span className="absolute top-1 right-1 w-4 h-4 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center" role="status" aria-label={`${unreadCount}条未读通知`}>
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -78,7 +79,7 @@ export default function NotificationBell() {
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
             <h4 className="text-sm font-semibold text-slate-800">通知</h4>
             {unreadCount > 0 && (
-              <button onClick={markAllRead} className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1">
+              <button onClick={markAllRead} className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1" aria-label="标记全部已读">
                 <CheckCheck size={12} /> 全部已读
               </button>
             )}

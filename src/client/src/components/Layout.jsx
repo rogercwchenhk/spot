@@ -48,7 +48,7 @@ export default function Layout() {
         !online ? 'top-6' : 'top-0'
       )}>
         <div className="flex items-center gap-3">
-          <button className="lg:hidden text-slate-500 hover:text-slate-700" onClick={() => setSidebarOpen(!sidebarOpen)}>
+          <button className="lg:hidden text-slate-500 hover:text-slate-700" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label={sidebarOpen ? "关闭菜单" : "打开菜单"}>
             {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
           <div className="flex items-center gap-2">
@@ -72,7 +72,7 @@ export default function Layout() {
               {role === 'admin' ? 'Admin' : role === 'hr' ? 'HR' : role === 'presales' ? 'PreSales' : 'Sales'}
             </span>
           </div>
-          <button onClick={logout} className="p-2 text-slate-400 hover:text-rose-500 transition-colors rounded-lg hover:bg-rose-50" title="登出">
+          <button onClick={logout} className="p-2 text-slate-400 hover:text-rose-500 transition-colors rounded-lg hover:bg-rose-50" aria-label="登出">
             <LogOut size={17} />
           </button>
         </div>
@@ -120,10 +120,13 @@ export default function Layout() {
       </div>
 
       {/* 底部 Tab 栏 (移动端) */}
-      <nav className={cn(
-        'fixed left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-slate-200/80 flex lg:hidden z-30',
-        !online ? 'bottom-0' : 'bottom-0'
-      )}>
+      <nav
+        className={cn(
+          'fixed left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-slate-200/80 flex lg:hidden z-30',
+          !online ? 'bottom-0' : 'bottom-0'
+        )}
+        aria-label="移动端导航"
+      >
         {mobileTabs.map(item => (
           <NavLink
             key={item.to}
@@ -143,6 +146,7 @@ export default function Layout() {
           <button
             onClick={() => setMoreOpen(!moreOpen)}
             className="flex-1 flex flex-col items-center py-2.5 text-xs text-slate-400 transition-colors"
+            aria-label="更多菜单"
           >
             <MoreHorizontal size={20} />
             <span className="mt-0.5">更多</span>

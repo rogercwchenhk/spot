@@ -25,7 +25,7 @@ const DIST_COLORS = {
 
 function StatCard({ icon: Icon, label, value, sub, accent }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200/80 p-5 flex items-start gap-4">
+    <div className="bg-white rounded-xl border border-slate-200/80 p-5 flex items-start gap-4" role="region" aria-label={label}>
       <div className={cn('shrink-0 w-10 h-10 rounded-lg flex items-center justify-center', accent)}>
         <Icon size={20} strokeWidth={1.8} />
       </div>
