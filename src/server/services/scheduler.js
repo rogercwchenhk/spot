@@ -9,6 +9,7 @@ const { processPendingNotices } = require('./ai-pipeline');
 const { calculatePendingMatches } = require('./match-engine');
 const { pushDailyReport, pushKeywordReport } = require('./wecom-notify');
 const { getConfig } = require('./config-reader');
+const { notifyCrawlDone, notifyNewStrongMatches } = require('./notification');
 
 const DEFAULT_CRON_PUSH = '0 9,14 * * *';
 const DEFAULT_FETCH_SCHEDULES = ['0 8 * * *', '0 12 * * *', '0 18 * * *', '0 23 * * *'];
@@ -24,6 +25,7 @@ async function runFullPipeline() {
     console.log('\n[1/4] 采集标讯...');
     const ingestionResult = await runFullIngestion();
     console.log(`[1/4] 采集完成: 新增 ${ingestionResult} 条`);
+    await notifyCrawlDone(ingestionResult);
 
     console.log('\n[2/4] 下载招标文件...');
     const downloadResult = await downloadBatch(20);
@@ -36,6 +38,12 @@ async function runFullPipeline() {
     console.log('\n[4/4] 匹配引擎计算...');
     const matchResult = await calculatePendingMatches(50);
     console.log(`[4/4] 匹配完成: ${matchResult.calculated} 成功, ${matchResult.failed} 失败`);
+
+    // 发送强推通知
+    if (matchResult.calculated > 0) {
+      const strongCount = await notifyNewStrongMatches(matchResult.matchedIds || []);
+      if (strongCount > 0) console.log(`[通知] 新增 ${strongCount} 条强推通知`);
+    }
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`\n=== 采集处理完成, 耗时 ${elapsed}s ===`);

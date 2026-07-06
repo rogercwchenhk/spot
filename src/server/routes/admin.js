@@ -7,6 +7,7 @@ const router = express.Router();
 const { supabaseAdmin, supabaseAdmin: supabaseWrite } = require('../db');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { processNotice, processPendingNotices, resetAllAiStatus } = require('../services/ai-pipeline');
+const { notifyNewStrongMatches } = require('../services/notification');
 const { calculateMatch, calculatePendingMatches } = require('../services/match-engine');
 const { downloadNoticeDoc, downloadBatch } = require('../services/doc-downloader');
 const { extractNoticeScoring, extractBatch } = require('../services/scoring-extractor');
@@ -117,6 +118,11 @@ router.post('/match/batch', async (req, res) => {
   try {
     const { limit = 50 } = req.body;
     const result = await calculatePendingMatches(limit);
+    // 自动发送强推通知
+    if (result.calculated > 0) {
+      const strongCount = await notifyNewStrongMatches(result.matchedIds || []);
+      if (strongCount > 0) console.log(`[admin] 新增 ${strongCount} 条强推通知`);
+    }
     res.json({ success: true, data: result });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

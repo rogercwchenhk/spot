@@ -318,10 +318,12 @@ async function calculatePendingMatches(limit = 250) {
 
   let calculated = 0;
   let failed = 0;
+  const matchedIds = [];
 
   for (const notice of pending) {
     try {
       await calculateMatch(notice.id);
+      matchedIds.push(notice.id);
       calculated++;
     } catch (err) {
       console.error(`[match-engine] Failed for notice ${notice.id}:`, err.message);
@@ -330,7 +332,7 @@ async function calculatePendingMatches(limit = 250) {
   }
 
   console.log(`[match-engine] Batch complete: ${calculated} calculated, ${failed} failed`);
-  return { calculated, failed };
+  return { calculated, failed, matchedIds };
 }
 
 module.exports = { calculateMatch, calculatePendingMatches };
