@@ -66,6 +66,48 @@ class CrAPI {
   post(path, body) { return this.request('POST', path, body); }
   put(path, body) { return this.request('PUT', path, body); }
   del(path) { return this.request('DELETE', path); }
+
+  async postForm(path, formData) {
+    const url = new URL(path, this.server);
+    const isHttps = url.protocol === 'https:';
+    const lib = isHttps ? https : http;
+
+    const headers = formData.getHeaders();
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    return new Promise((resolve, reject) => {
+      const req = lib.request(url, { method: 'POST', headers }, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(data);
+            if (res.statusCode >= 400) {
+              reject(new Error(json.error || json.message || `HTTP ${res.statusCode}`));
+            } else {
+              resolve(json);
+            }
+          } catch (e) {
+            if (res.statusCode >= 400) {
+              reject(new Error(`HTTP ${res.statusCode}: ${data.slice(0, 200)}`));
+            } else {
+              resolve({ raw: data });
+            }
+          }
+        });
+      });
+
+      req.on('error', reject);
+      req.setTimeout(120000, () => {
+        req.destroy();
+        reject(new Error('Upload timeout (120s)'));
+      });
+
+      formData.pipe(req);
+    });
+  }
 }
 
 module.exports = CrAPI;
