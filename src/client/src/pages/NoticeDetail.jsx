@@ -66,7 +66,7 @@ export default function NoticeDetail() {
                 <span className="text-xs text-slate-400">扣分 {match.total_deduction}</span>
               )}
             </div>
-            <h1 className="text-lg font-semibold text-slate-900 leading-snug mb-4">{notice.title}</h1>
+            <h1 className="text-sm font-semibold text-slate-900 leading-snug mb-3">{notice.title}</h1>
 
             <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
               <div className="flex items-center gap-2">
