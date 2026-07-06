@@ -9,7 +9,7 @@ const { getConfig } = require('./config-reader');
 const { extractLocationFromTitle } = require('./filter');
 
 const ENGINE_PATH = path.join(__dirname, '../../../scripts/scrapling_engine.py');
-const PYTHON = process.env.SCRAPLING_PYTHON || 'python3.13';
+const PYTHON = process.env.SCRAPLING_PYTHON || 'python3.13'; // System-level config, kept as env var
 
 /**
  * 调用 Scrapling 引擎爬取列表页

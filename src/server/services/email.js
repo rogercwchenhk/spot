@@ -98,7 +98,7 @@ async function sendWelcomeEmail(email, password, role) {
         <p style="margin: 8px 0;"><strong>角色：</strong>${roleNames[role] || role}</p>
       </div>
       <p>请登录后及时修改密码。</p>
-      <a href="${process.env.APP_URL || 'http://localhost:5173'}/login"
+      <a href="${await getConfig('app.url', process.env.APP_URL || 'http://localhost:5173')}/login"
          style="display: inline-block; background: #4f46e5; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin: 16px 0;">
         立即登录
       </a>
@@ -145,7 +145,7 @@ async function sendEmailChangeConfirmation(oldEmail, newEmail) {
       <p>您好，</p>
       <p>您的登录邮箱已从 <strong>${oldEmail}</strong> 变更为 <strong>${newEmail}</strong>。</p>
       <p>请使用新邮箱登录系统。</p>
-      <a href="${process.env.APP_URL || 'http://localhost:5173'}/login"
+      <a href="${await getConfig('app.url', process.env.APP_URL || 'http://localhost:5173')}/login"
          style="display: inline-block; background: #4f46e5; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin: 16px 0;">
         立即登录
       </a>

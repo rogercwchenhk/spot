@@ -69,7 +69,7 @@ async function pushNoticeNotification(notice, matchResult) {
   const budgetText = notice.budget_amount ? `¥${(notice.budget_amount / 10000).toFixed(0)}万` : '未公开';
   const deadlineText = notice.end_date ? new Date(notice.end_date).toLocaleDateString('zh-CN') : '未知';
 
-  const pwaUrl = process.env.PWA_URL || 'http://localhost:5173';
+  const pwaUrl = await getConfig('app.pwa_url', process.env.PWA_URL || 'http://localhost:5173');
 
   const content = `## ${levelEmoji} 新标讯 - ${levelText}
 **${notice.title}**

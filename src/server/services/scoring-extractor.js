@@ -3,19 +3,19 @@
  * PDF/DOCX → 文本提取 → AI 结构化解析 → 存入 notice_scoring
  */
 const { supabaseAdmin } = require('../db');
+const { getConfig } = require('./config-reader');
 const { execSync } = require('child_process');
 const path = require('path');
 
-const MIMO_BASE_URL = process.env.MIMO_BASE_URL || 'https://token-plan-cn.xiaomimimo.com/v1';
-const MIMO_API_KEY = process.env.MIMO_API_KEY;
-const MIMO_MODEL = process.env.MIMO_MODEL || 'mimo-v2.5-pro';
 const EXTRACT_SCRIPT = path.join(__dirname, '../../../scripts/extract-text.py');
 
 /**
  * 从 Storage 提取文本
  */
-function extractText(storagePath) {
-  const cmd = `python3 "${EXTRACT_SCRIPT}" "${process.env.SUPABASE_URL}" "${process.env.SUPABASE_SERVICE_ROLE_KEY}" "${storagePath}"`;
+async function extractText(storagePath) {
+  const supabaseUrl = await getConfig('supabase.url', process.env.SUPABASE_URL);
+  const supabaseKey = await getConfig('supabase.service_role_key', process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const cmd = `python3 "${EXTRACT_SCRIPT}" "${supabaseUrl}" "${supabaseKey}" "${storagePath}"`;
   try {
     return execSync(cmd, { encoding: 'utf8', timeout: 30000 }).trim();
   } catch (err) {
