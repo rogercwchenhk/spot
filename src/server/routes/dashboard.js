@@ -95,3 +95,46 @@ router.get('/stats', async (req, res) => {
 });
 
 module.exports = router;
+
+// GET /api/dashboard/status-stats - 标讯状态统计 (B12)
+router.get('/status-stats', async (req, res) => {
+  try {
+    // 按 notice_status 分组统计
+    const { data, error } = await supabaseAdmin
+      .from('bidding_notice')
+      .select('notice_status');
+
+    if (error) throw error;
+
+    // 初始化统计
+    const stats = {
+      new: 0,
+      following: 0,
+      ignored: 0,
+      bidding: 0,
+      won: 0,
+      lost: 0,
+      total: data?.length || 0,
+    };
+
+    // 计数
+    for (const row of data || []) {
+      const status = row.notice_status || 'new';
+      if (stats[status] !== undefined) {
+        stats[status]++;
+      }
+    }
+
+    // 计算衍生指标
+    stats.winRate = stats.bidding > 0 
+      ? Math.round((stats.won / stats.bidding) * 100) 
+      : 0;
+    
+    stats.activeCount = stats.following + stats.bidding;
+
+    res.json({ success: true, data: stats });
+  } catch (err) {
+    console.error('[dashboard] status-stats error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});

@@ -76,6 +76,33 @@ function MatchDistribution({ dist, total }) {
   );
 }
 
+function StatusDistribution({ stats }) {
+  if (!stats) return null;
+
+  const items = [
+    { key: 'following', label: '跟进中', color: 'bg-blue-500', textColor: 'text-blue-600' },
+    { key: 'bidding', label: '已投标', color: 'bg-purple-500', textColor: 'text-purple-600' },
+    { key: 'won', label: '已中标', color: 'bg-emerald-500', textColor: 'text-emerald-600' },
+    { key: 'lost', label: '未中标', color: 'bg-rose-500', textColor: 'text-rose-600' },
+    { key: 'ignored', label: '已忽略', color: 'bg-slate-300', textColor: 'text-slate-500' },
+  ];
+
+  const activeTotal = stats.following + stats.bidding;
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      {items.map(item => (
+        <div key={item.key} className="text-center">
+          <div className={cn('text-2xl font-semibold tracking-tight', item.textColor)}>
+            {stats[item.key] || 0}
+          </div>
+          <div className="text-xs text-slate-500 mt-0.5">{item.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function RecentNoticeRow({ notice }) {
   const match = notice.match_result;
   const levelCfg = match ? LEVEL_CONFIG[match.recommend_level] : null;
@@ -116,9 +143,17 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const [statusStats, setStatusStats] = useState(null);
+
   useEffect(() => {
-    radarApi.get('/dashboard/stats')
-      .then(res => setStats(res.data))
+    Promise.all([
+      radarApi.get('/dashboard/stats'),
+      radarApi.get('/dashboard/status-stats'),
+    ])
+      .then(([statsRes, statusRes]) => {
+        setStats(statsRes.data);
+        setStatusStats(statusRes.data);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
@@ -185,6 +220,19 @@ export default function Dashboard() {
       <div className="bg-white rounded-xl border border-slate-200/80 p-5">
         <h3 className="text-sm font-semibold text-slate-800 mb-4">匹配等级分布</h3>
         <MatchDistribution dist={matchDistribution} total={totalNotices} />
+      </div>
+
+      {/* 标讯状态统计 (B12) */}
+      <div className="bg-white rounded-xl border border-slate-200/80 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-slate-800">跟进状态</h3>
+          {statusStats?.winRate > 0 && (
+            <span className="text-xs text-emerald-600 font-medium">
+              中标率 {statusStats.winRate}%
+            </span>
+          )}
+        </div>
+        <StatusDistribution stats={statusStats} />
       </div>
 
         <QualWarningCard />
