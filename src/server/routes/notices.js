@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { supabaseAdmin } = require('../db');
+const { requireAuth } = require('../middleware/auth');
 
 // GET /api/notices - 标讯列表
 router.get('/', async (req, res) => {
@@ -14,6 +15,7 @@ router.get('/', async (req, res) => {
       keyword,
       start_date,
       doc_access_type,
+      notice_status,
     } = req.query;
 
     // 如果按推荐等级筛选，先从 match_result 表查出符合条件的 notice_id
@@ -43,6 +45,7 @@ router.get('/', async (req, res) => {
     if (keyword) query = query.or(`title.ilike.%${keyword}%,notice_summary.ilike.%${keyword}%`);
     if (start_date) query = query.gte('publish_date', start_date);
     if (doc_access_type) query = query.eq('doc_access_type', doc_access_type);
+    if (notice_status) query = query.eq('notice_status', notice_status);
 
     const { data, error, count } = await query;
     if (error) throw error;
@@ -54,6 +57,32 @@ router.get('/', async (req, res) => {
       page: Number(page),
       pageSize: Number(pageSize),
     });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// PATCH /api/notices/:id/status - 更新标讯状态（销售标注 B5）
+router.patch('/:id/status', requireAuth, async (req, res) => {
+  try {
+    const { notice_status } = req.body;
+    const validStatuses = ['new', 'following', 'ignored', 'bidding', 'won', 'lost'];
+
+    if (!notice_status || !validStatuses.includes(notice_status)) {
+      return res.status(400).json({ success: false, error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('bidding_notice')
+      .update({ notice_status, updated_at: new Date().toISOString() })
+      .eq('id', req.params.id)
+      .select('id, notice_status')
+      .single();
+
+    if (error) throw error;
+    if (!data) return res.status(404).json({ success: false, error: 'Notice not found' });
+
+    res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

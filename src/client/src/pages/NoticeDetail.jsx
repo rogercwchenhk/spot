@@ -11,23 +11,48 @@ const LEVEL_CONFIG = {
   no: { label: '不建议', cls: 'badge-no', accent: 'bg-rose-50 text-rose-700' },
 };
 
+const STATUS_OPTIONS = [
+  { value: 'new', label: '新标讯' },
+  { value: 'following', label: '跟进中' },
+  { value: 'ignored', label: '已忽略' },
+  { value: 'bidding', label: '已投标' },
+  { value: 'won', label: '已中标' },
+  { value: 'lost', label: '未中标' },
+];
+
 export default function NoticeDetail() {
   const { id } = useParams();
   const [notice, setNotice] = useState(null);
   const [match, setMatch] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setLoading(true);
     radarApi.get(`/notices/${id}`)
       .then(res => {
         setNotice(res.data);
+        setStatus(res.data?.notice_status || 'new');
         const m = Array.isArray(res.data?.match_result) ? res.data.match_result[0] : res.data?.match_result;
         setMatch(m);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [id]);
+
+  const updateStatus = async (newStatus) => {
+    setSaving(true);
+    try {
+      await radarApi.patch(`/notices/${id}/status`, { notice_status: newStatus });
+      setStatus(newStatus);
+    } catch (err) {
+      console.error('Failed to update status:', err);
+      alert('状态更新失败: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -65,6 +90,19 @@ export default function NoticeDetail() {
               {match && (
                 <span className="text-xs text-slate-400">扣分 {match.total_deduction}</span>
               )}
+              {/* 状态选择器 */}
+              <div className="ml-auto">
+                <select
+                  value={status}
+                  onChange={(e) => updateStatus(e.target.value)}
+                  disabled={saving}
+                  className="text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 disabled:opacity-50"
+                >
+                  {STATUS_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             <h1 className="text-sm font-semibold text-slate-900 leading-snug mb-3">{notice.title}</h1>
 

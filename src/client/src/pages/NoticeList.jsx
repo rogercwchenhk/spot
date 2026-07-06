@@ -11,6 +11,15 @@ const LEVEL_CONFIG = {
   no:     { label: '不建议', cls: 'badge-no',     barColor: 'bg-rose-500' },
 };
 
+const STATUS_CONFIG = {
+  new:       { label: '新标讯',   cls: 'bg-slate-100 text-slate-600' },
+  following: { label: '跟进中',   cls: 'bg-blue-100 text-blue-600' },
+  ignored:   { label: '已忽略',   cls: 'bg-slate-100 text-slate-400' },
+  bidding:   { label: '已投标',   cls: 'bg-purple-100 text-purple-600' },
+  won:       { label: '已中标',   cls: 'bg-emerald-100 text-emerald-600' },
+  lost:      { label: '未中标',   cls: 'bg-rose-100 text-rose-600' },
+};
+
 const SOURCE_LABELS = {
   zhiliao: '知了',
   scrapling: '爬虫',
@@ -42,6 +51,7 @@ export default function NoticeList() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [level, setLevel] = useState('');
+  const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
   const pageSize = 20;
 
@@ -49,6 +59,7 @@ export default function NoticeList() {
     setLoading(true);
     const params = { page, pageSize };
     if (level) params.recommend_level = level;
+    if (status) params.notice_status = status;
     radarApi.get('/notices', { params })
       .then(res => {
         setNotices(res.data || []);
@@ -56,7 +67,7 @@ export default function NoticeList() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [page, level]);
+  }, [page, level, status]);
 
   const totalPages = Math.ceil(total / pageSize);
 
@@ -70,7 +81,7 @@ export default function NoticeList() {
       </div>
 
       {/* 等级筛选 Tab */}
-      <div className="flex gap-1.5 mb-5 overflow-x-auto pb-1">
+      <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1">
         {[{ value: '', label: '全部' },
           { value: 'strong', label: '强推' },
           { value: 'yes', label: '可以投' },
@@ -84,6 +95,30 @@ export default function NoticeList() {
               'px-3 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-all',
               level === tab.value
                 ? 'bg-slate-800 text-white shadow-sm'
+                : 'bg-white border border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-300'
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* 状态筛选 Tab */}
+      <div className="flex gap-1.5 mb-5 overflow-x-auto pb-1">
+        {[{ value: '', label: '全部状态' },
+          { value: 'new', label: '新标讯' },
+          { value: 'following', label: '跟进中' },
+          { value: 'bidding', label: '已投标' },
+          { value: 'won', label: '已中标' },
+          { value: 'ignored', label: '已忽略' },
+        ].map(tab => (
+          <button
+            key={tab.value}
+            onClick={() => { setStatus(tab.value); setPage(1); }}
+            className={cn(
+              'px-3 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-all',
+              status === tab.value
+                ? 'bg-indigo-600 text-white shadow-sm'
                 : 'bg-white border border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-300'
             )}
           >
@@ -111,6 +146,7 @@ export default function NoticeList() {
           {notices.map(notice => {
             const match = Array.isArray(notice.match_result) ? notice.match_result[0] : notice.match_result;
             const levelInfo = match ? LEVEL_CONFIG[match.recommend_level] : null;
+            const statusInfo = notice.notice_status ? STATUS_CONFIG[notice.notice_status] : null;
             const sourceLabel = notice.data_source ? (SOURCE_LABELS[notice.data_source] || notice.data_source) : null;
 
             return (
@@ -126,6 +162,11 @@ export default function NoticeList() {
                       {levelInfo && (
                         <span className={cn('text-[10px] font-medium px-1.5 py-0.5 rounded-md', levelInfo.cls)}>
                           {levelInfo.label}
+                        </span>
+                      )}
+                      {statusInfo && notice.notice_status !== 'new' && (
+                        <span className={cn('text-[10px] font-medium px-1.5 py-0.5 rounded-md', statusInfo.cls)}>
+                          {statusInfo.label}
                         </span>
                       )}
                       {match && (

@@ -98,3 +98,39 @@ function register(program, api) {
 }
 
 module.exports = { register };
+
+  // ── 销售标注状态 (B5) ─────────────────────────────────────
+
+  notice
+    .command('status <id> [status]')
+    .description('查看/更新标讯状态')
+    .action(async (id, status) => {
+      try {
+        if (!status) {
+          // 查看当前状态
+          const res = await api.get(`/api/notices/${id}`);
+          const n = res.data || res;
+          if (program.opts().json) {
+            success({ id: n.id, notice_status: n.notice_status }, true);
+          } else {
+            console.log(`\n  标讯 ${id} 状态: ${n.notice_status || 'new'}`);
+            console.log('');
+          }
+        } else {
+          // 更新状态
+          const validStatuses = ['new', 'following', 'ignored', 'bidding', 'won', 'lost'];
+          if (!validStatuses.includes(status)) {
+            error(`无效状态: ${status}，可选: ${validStatuses.join(', ')}`, program.opts().json);
+            return;
+          }
+
+          const res = await api.patch(`/api/notices/${id}/status`, { notice_status: status });
+          if (program.opts().json) {
+            success(res.data || res, true);
+          } else {
+            console.log(`\n  已更新标讯 ${id} 状态: ${status}`);
+            console.log('');
+          }
+        }
+      } catch (e) { error(e.message, program.opts().json); }
+    });

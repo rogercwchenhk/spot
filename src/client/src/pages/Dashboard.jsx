@@ -178,6 +178,7 @@ export default function Dashboard() {
           sub="已匹配 / 总量"
           accent="bg-sky-50 text-sky-600"
         />
+        <QualWarningCard />
       </div>
 
       {/* 匹配分布 */}
@@ -186,6 +187,7 @@ export default function Dashboard() {
         <MatchDistribution dist={matchDistribution} total={totalNotices} />
       </div>
 
+        <QualWarningCard />
       {/* 最近标讯 */}
       <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
@@ -236,5 +238,60 @@ export default function Dashboard() {
         )}
       </div>
     </div>
+  );
+}
+
+// ── 资质到期预警卡片 (B6) ─────────────────────────────────────
+function QualWarningCard() {
+  const [warning, setWarning] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    radarApi.get('/admin/qual-warning?days=30')
+      .then(res => setWarning(res.data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl border border-slate-200/80 p-5 animate-pulse">
+        <div className="h-4 bg-slate-100 rounded w-24 mb-3" />
+        <div className="h-8 bg-slate-100 rounded w-16" />
+      </div>
+    );
+  }
+
+  const total = warning?.total || 0;
+  const companyCount = warning?.companyQuals?.length || 0;
+  const personnelCount = warning?.personnelQuals?.length || 0;
+
+  return (
+    <Link to="/qualifications" className="bg-white rounded-xl border border-slate-200/80 p-5 hover:border-indigo-300 hover:shadow-sm transition-all group">
+      <div className="flex items-start gap-4">
+        <div className={cn(
+          'shrink-0 w-10 h-10 rounded-lg flex items-center justify-center',
+          total > 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'
+        )}>
+          <Award size={20} strokeWidth={1.8} />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm text-slate-500">资质到期预警</p>
+          <p className="text-2xl font-semibold tracking-tight text-slate-900 mt-0.5">
+            {total > 0 ? total : '✅'}
+          </p>
+          {total > 0 ? (
+            <p className="text-xs text-rose-500 mt-1">
+              {companyCount > 0 && `${companyCount}项公司资质`}
+              {companyCount > 0 && personnelCount > 0 && '、'}
+              {personnelCount > 0 && `${personnelCount}项人员资质`}
+              {' '}即将到期
+            </p>
+          ) : (
+            <p className="text-xs text-emerald-500 mt-1">30天内无到期资质</p>
+          )}
+        </div>
+      </div>
+    </Link>
   );
 }

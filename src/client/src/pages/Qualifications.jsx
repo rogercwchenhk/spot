@@ -7,6 +7,18 @@ import Modal, { ConfirmDialog } from '../components/Modal';
 import { Plus, Pencil, Trash2, Save, Image as ImageIcon, HelpCircle } from 'lucide-react';
 import QualImageManager from '../components/QualImageManager';
 
+// ── 到期预警工具函数 ──────────────────────────────────────
+function getExpiryStatus(expiryDate) {
+  if (!expiryDate) return { color: 'text-slate-500', bg: ', label: '永久', days: Infinity };
+  const now = new Date();
+  const expiry = new Date(expiryDate);
+  const days = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+  if (days < 0) return { color: 'text-rose-600', bg: 'bg-rose-50', label: '已过期', days };
+  if (days <= 30) return { color: 'text-rose-600', bg: 'bg-rose-50', label: `${days}天`, days };
+  if (days <= 90) return { color: 'text-amber-600', bg: 'bg-amber-50', label: `${days}天`, days };
+  return { color: 'text-emerald-600', bg: 'bg-emerald-50', label: `${days}天`, days };
+}
+
 // ── 字段定义 ──────────────────────────────────────────
 const COMPANY_FIELDS = [
   { key: 'qual_type',   label: '资质类型', placeholder: 'ISO9001 / ITSS / CS', required: true },
@@ -322,7 +334,7 @@ export default function Qualifications() {
                         <td className="px-4 py-3 font-medium text-slate-800">{item.qual_name}</td>
                         <td className="px-4 py-3 text-slate-600">{item.qual_level || '-'}</td>
                         <td className="px-4 py-3 font-mono text-xs text-slate-500">{item.cert_number || '-'}</td>
-                        <td className="px-4 py-3 text-xs text-slate-500">{item.expiry_date || '永久'}</td>
+                        <td className="px-4 py-3 text-xs text-slate-500">{(() => { const s = getExpiryStatus(item.expiry_date); return <span className={cn("px-2 py-0.5 rounded-md text-xs font-medium", s.bg, s.color)}>{item.expiry_date || '永久'} {item.expiry_date {item.expiry_date || '永久'}{item.expiry_date || '永久'} s.label}; })()}</td>
                       </>
                     ) : (
                       <>
@@ -330,7 +342,7 @@ export default function Qualifications() {
                         <td className="px-4 py-3 text-slate-600">{item.qual_type}</td>
                         <td className="px-4 py-3 text-slate-600">{item.qual_name}</td>
                         <td className="px-4 py-3 font-mono text-xs text-slate-500">{item.cert_number || '-'}</td>
-                        <td className="px-4 py-3 text-xs text-slate-500">{item.expiry_date || '永久'}</td>
+                        <td className="px-4 py-3 text-xs text-slate-500">{(() => { const s = getExpiryStatus(item.expiry_date); return <span className={cn("px-2 py-0.5 rounded-md text-xs font-medium", s.bg, s.color)}>{item.expiry_date || '永久'} {item.expiry_date {item.expiry_date || '永久'}{item.expiry_date || '永久'} s.label}; })()}</td>
                       </>
                     )}
                     {canManageQualifications && (
@@ -368,14 +380,14 @@ export default function Qualifications() {
                       <div><span className="text-slate-500">类型:</span> <span className="text-slate-700">{item.qual_type}</span></div>
                       <div><span className="text-slate-500">等级:</span> <span className="text-slate-700">{item.qual_level || '-'}</span></div>
                       <div><span className="text-slate-500">编号:</span> <span className="text-slate-700 font-mono">{item.cert_number || '-'}</span></div>
-                      <div><span className="text-slate-500">有效期:</span> <span className="text-slate-700">{item.expiry_date || '永久'}</span></div>
+                      <div><span className="text-slate-500">有效期:</span> <span className="text-slate-700">{(() => { const s = getExpiryStatus(item.expiry_date); return <span className={cn("px-2 py-0.5 rounded-md text-xs font-medium", s.bg, s.color)}>{item.expiry_date || '永久'} {item.expiry_date {item.expiry_date || '永久'}{item.expiry_date || '永久'} s.label}; })()}</span></div>
                     </>
                   ) : (
                     <>
                       <div><span className="text-slate-500">类型:</span> <span className="text-slate-700">{item.qual_type}</span></div>
                       <div><span className="text-slate-500">证书:</span> <span className="text-slate-700">{item.qual_name}</span></div>
                       <div><span className="text-slate-500">编号:</span> <span className="text-slate-700 font-mono">{item.cert_number || '-'}</span></div>
-                      <div><span className="text-slate-500">有效期:</span> <span className="text-slate-700">{item.expiry_date || '永久'}</span></div>
+                      <div><span className="text-slate-500">有效期:</span> <span className="text-slate-700">{(() => { const s = getExpiryStatus(item.expiry_date); return <span className={cn("px-2 py-0.5 rounded-md text-xs font-medium", s.bg, s.color)}>{item.expiry_date || '永久'} {item.expiry_date {item.expiry_date || '永久'}{item.expiry_date || '永久'} s.label}; })()}</span></div>
                     </>
                   )}
                 </div>

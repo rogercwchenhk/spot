@@ -465,6 +465,29 @@ async function notifyWeChat(notice, matchResult) {
 
 ---
 
+### Phase 6: 销售标注 + 资质到期预警（2026-07-06）
+
+**目标：销售跟进状态管理 + 资质到期自动预警**
+
+**B5 — 销售标注功能:**
+- [x] 数据库：bidding_notice 新增 notice_status 字段（6态：new/following/ignored/bidding/won/lost）
+- [x] 后端：PATCH /api/notices/:id/status 接口 + notice_status 查询筛选
+- [x] 前端：NoticeList 状态筛选 Tab + NoticeDetail 状态选择器
+- [x] CLI：cr notice status <id> [status] 命令
+
+**B6 — 资质到期预警:**
+- [x] 数据库：system_config 预警配置 + qual_warning_history 推送历史表
+- [x] 后端：qual-warning.js 服务（检查+报告+推送+历史记录）
+- [x] API：GET /api/admin/qual-warning + POST /api/admin/qual-warning/push
+- [x] 定时调度：每天 09:00 检查并推送（与日报独立）
+- [x] 前端：Qualifications 页面到期状态标签（绿/黄/红）+ Dashboard 预警卡片
+- [x] CLI：cr admin qual:warning [--days N] [--push] 命令
+
+**交付物：** 销售可标注跟进状态，资质到期前30天自动推送预警到企微群
+
+
+---
+
 ## 8. Backlog（待排期）
 
 **已交付:**
@@ -480,8 +503,8 @@ async function notifyWeChat(notice, matchResult) {
 
 | # | 功能 | 说明 | 依赖 |
 |---|---|---|---|
-| B5 | 销售标注功能 | 已跟进 / 忽略 / 已投标 状态标记 | notice_status 字段 |
-| B6 | 资质到期预警 | 资质到期前 30 天自动提醒 | 企微推送集成 |
+| B5 | 销售标注功能 | ✅ Phase 6 | notice_status 字段 |
+| B6 | 资质到期预警 | ✅ Phase 6 | 企微推送集成 |
 | B7 | 评分标准批量提取 | 已下载招标文件的评分标准自动提取 | Phase 2.6 基础 |
 | B8 | 代码分割 / 懒加载 | 路由级 lazy import 减少首屏 bundle | 无 |
 | B9 | Modal 焦点陷阱 | Tab 键在弹窗内循环 | 无 |

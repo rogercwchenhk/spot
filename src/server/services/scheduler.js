@@ -10,6 +10,7 @@ const { calculatePendingMatches } = require('./match-engine');
 const { pushDailyReport, pushKeywordReport } = require('./wecom-notify');
 const { getConfig } = require('./config-reader');
 const { notifyCrawlDone, notifyNewStrongMatches } = require('./notification');
+const { runQualWarning } = require('./qual-warning');
 
 const DEFAULT_CRON_PUSH = '0 9,14 * * *';
 const DEFAULT_FETCH_SCHEDULES = ['0 8 * * *', '0 12 * * *', '0 18 * * *', '0 23 * * *'];
@@ -68,13 +69,26 @@ async function startScheduler() {
     }
   });
 
+  // 资质到期预警检查（每天 09:00）
+  const qualWarningCron = await getConfig('qual.warning_cron', '0 9 * * *');
+  console.log(`[scheduler] 资质预警: ${qualWarningCron}`);
+  if (cron.validate(qualWarningCron)) {
+    cron.schedule(qualWarningCron, async () => {
+      console.log(`\n[scheduler] 开始资质到期预警检查 ${new Date().toISOString()}`);
+      try {
+        await runQualWarning();
+      } catch (err) {
+        console.error('[scheduler] 资质预警检查失败:', err.message);
+      }
+    });
+  }
+
   // 关键词效果报告（每周一 10:00 推送）
   const keywordReportCron = await getConfig('push.keyword_report_cron', '0 10 * * 1');
   console.log(`[scheduler] 关键词报告: ${keywordReportCron}`);
   if (cron.validate(keywordReportCron)) {
     cron.schedule(keywordReportCron, async () => {
-      console.log(`
-[scheduler] 开始推送关键词效果报告 ${new Date().toISOString()}`);
+      console.log(`\n[scheduler] 开始推送关键词效果报告 ${new Date().toISOString()}`);
       try {
         const { pushKeywordReport } = require('./wecom-notify');
         await pushKeywordReport(true);

@@ -632,3 +632,28 @@ router.post('/users/:id/reset-password', async (req, res) => {
 
 
 module.exports = router;
+
+// ── 资质到期预警 (B6) ─────────────────────────────────────
+
+// GET /api/admin/qual-warning - 查看即将到期的资质
+router.get('/qual-warning', async (req, res) => {
+  try {
+    const { checkExpiringQualifications } = require('../services/qual-warning');
+    const warningDays = parseInt(req.query.days) || 30;
+    const result = await checkExpiringQualifications(warningDays);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/admin/qual-warning/push - 手动触发预警推送
+router.post('/qual-warning/push', async (req, res) => {
+  try {
+    const { runQualWarning } = require('../services/qual-warning');
+    const result = await runQualWarning();
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});

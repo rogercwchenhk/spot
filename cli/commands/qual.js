@@ -245,3 +245,65 @@ function register(program, api) {
 }
 
 module.exports = { register };
+
+  // ── 资质到期预警 (B6) ─────────────────────────────────────
+
+  qual
+    .command('warning')
+    .description('查看即将到期的资质')
+    .option('--days <days>', '预警天数', '30')
+    .option('--push', '手动触发预警推送')
+    .action(async (opts) => {
+      try {
+        if (opts.push) {
+          const res = await api.post('/api/admin/qual-warning/push');
+          if (program.opts().json) {
+            success(res.data || res, true);
+          } else {
+            const data = res.data || res;
+            console.log('\n  预警推送结果:');
+            console.log('  ─────────────────────────');
+            console.log(`  总计: ${data.total} 项`);
+            console.log(`  已推送: ${data.pushed} 项`);
+            console.log(`  公司资质: ${data.company || 0} 项`);
+            console.log(`  人员资质: ${data.personnel || 0} 项`);
+            console.log('');
+          }
+        } else {
+          const res = await api.get(`/api/admin/qual-warning?days=${opts.days}`);
+          const data = res.data || res;
+
+          if (program.opts().json) {
+            success(data, true);
+          } else {
+            console.log(`\n  资质到期预警 (${opts.days}天内):`);
+            console.log('  ─────────────────────────');
+
+            if (data.companyQuals?.length > 0) {
+              console.log('\n  🏢 公司资质:');
+              table(data.companyQuals, [
+                { key: 'qual_name', label: '资质名称', maxWidth: 30 },
+                { key: 'cert_number', label: '证书编号', maxWidth: 20 },
+                { key: 'expiry_date', label: '到期日', maxWidth: 12 },
+                { key: 'days_remaining', label: '剩余天数', maxWidth: 10 },
+              ]);
+            }
+
+            if (data.personnelQuals?.length > 0) {
+              console.log('\n  👤 人员资质:');
+              table(data.personnelQuals, [
+                { key: 'person_name', label: '姓名', maxWidth: 10 },
+                { key: 'qual_name', label: '资质名称', maxWidth: 30 },
+                { key: 'expiry_date', label: '到期日', maxWidth: 12 },
+                { key: 'days_remaining', label: '剩余天数', maxWidth: 10 },
+              ]);
+            }
+
+            if (data.total === 0) {
+              console.log('\n  ✅ 没有即将到期的资质');
+            }
+            console.log('');
+          }
+        }
+      } catch (e) { error(e.message, program.opts().json); }
+    });
