@@ -22,6 +22,13 @@ const config = {
   wecom: {
     webhookUrl: process.env.WECOM_WEBHOOK_URL,
   },
+  // 安全配置
+  security: {
+    corsOrigins: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()) : '*'},
+    rateLimitWindowMs: 15 * 60 * 1000,
+    rateLimitMax: 100,
+    authRateLimitMax: 20,
+  },
   // ============================================================
   // 搜索关键词策略 v2（可被 DB fetch.keyword_groups 覆盖）
   // 使用 query_bids_advanced 的 keyword_groups 实现组内AND/组间OR

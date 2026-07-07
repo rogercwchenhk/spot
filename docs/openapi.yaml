@@ -1,0 +1,536 @@
+openapi: '3.0.3'
+info:
+  title: Customer Radar API
+  description: 客户雷达 — AI 招投标情报平台 API
+  version: '1.0.0'
+
+servers:
+  - url: http://localhost:3200
+    description: Local development
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+
+    BiddingNotice:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        city:
+          type: string
+        budget_amount:
+          type: number
+        publish_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        notice_status:
+          type: string
+          enum: [new, following, ignored, bidding, won, lost]
+        created_at:
+          type: string
+          format: date-time
+
+    MatchResult:
+      type: object
+      properties:
+        id:
+          type: integer
+        notice_id:
+          type: integer
+        recommend_level:
+          type: string
+          enum: [strong, yes, risky, no]
+        total_deduction:
+          type: number
+        match_details:
+          type: object
+
+    Qualification:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+        name:
+          type: string
+        level:
+          type: string
+        cert_number:
+          type: string
+        expiry_date:
+          type: string
+          format: date
+        is_active:
+          type: boolean
+
+    Contract:
+      type: object
+      properties:
+        id:
+          type: integer
+        project_name:
+          type: string
+        industry:
+          type: string
+        service_type:
+          type: string
+        amount:
+          type: number
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+        title:
+          type: string
+        message:
+          type: string
+        is_read:
+          type: boolean
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/health:
+    get:
+      summary: Health check
+      security: []
+      responses:
+        '200':
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  checks:
+                    type: object
+                  time:
+                    type: string
+                    format: date-time
+        '503':
+          description: Degraded
+
+  /api/auth/login:
+    post:
+      summary: Login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 6
+      responses:
+        '200':
+          description: Login successful
+        '401':
+          description: Invalid credentials
+        '400':
+          description: Validation failed
+
+  /api/auth/logout:
+    post:
+      summary: Logout
+      responses:
+        '200':
+          description: Logged out
+
+  /api/auth/me:
+    get:
+      summary: Get current user
+      responses:
+        '200':
+          description: User info
+
+  /api/auth/reset-password:
+    post:
+      summary: Send password reset email
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Reset email sent
+
+  /api/auth/update-password:
+    post:
+      summary: Update password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password:
+                  type: string
+                  minLength: 6
+      responses:
+        '200':
+          description: Password updated
+
+  /api/notices:
+    get:
+      summary: List bidding notices
+      parameters:
+        - name: level
+          in: query
+          schema:
+            type: string
+            enum: [strong, yes, risky, no]
+        - name: city
+          in: query
+          schema:
+            type: string
+        - name: days
+          in: query
+          schema:
+            type: string
+            default: '7'
+        - name: access
+          in: query
+          schema:
+            type: string
+            enum: [unknown, free, paid, registration_required]
+        - name: page
+          in: query
+          schema:
+            type: string
+            default: '1'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [new, following, ignored, bidding, won, lost]
+      responses:
+        '200':
+          description: Notice list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BiddingNotice'
+
+  /api/notices/{id}:
+    get:
+      summary: Get notice detail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Notice detail
+        '404':
+          description: Not found
+
+  /api/match:
+    get:
+      summary: List match results
+      parameters:
+        - name: level
+          in: query
+          schema:
+            type: string
+            enum: [strong, yes, risky, no]
+      responses:
+        '200':
+          description: Match results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MatchResult'
+
+  /api/dashboard/stats:
+    get:
+      summary: Dashboard statistics
+      responses:
+        '200':
+          description: Stats including totalNotices, todayNew, matchDistribution, recentNotices
+
+  /api/dashboard/trend:
+    get:
+      summary: Notice ingestion trend
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: string
+            default: '30'
+      responses:
+        '200':
+          description: Trend data
+
+  /api/dashboard/status-stats:
+    get:
+      summary: Notice status distribution
+      responses:
+        '200':
+          description: Status counts (new, following, bidding, won, lost)
+
+  /api/qualifications:
+    get:
+      summary: List qualifications (company + personnel)
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Qualification list
+
+  /api/qualifications/{id}:
+    put:
+      summary: Update qualification
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Qualification'
+      responses:
+        '200':
+          description: Updated
+    delete:
+      summary: Delete qualification
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Deleted
+
+  /api/qual-images:
+    get:
+      summary: List qualification images
+      responses:
+        '200':
+          description: Image list
+    post:
+      summary: Upload qualification image
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Uploaded
+
+  /api/contracts:
+    get:
+      summary: List contracts
+      parameters:
+        - name: industry
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Contract list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Contract'
+    post:
+      summary: Create contract
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Contract'
+      responses:
+        '200':
+          description: Created
+
+  /api/platforms:
+    get:
+      summary: List platform sources
+      responses:
+        '200':
+          description: Platform list
+    post:
+      summary: Create platform source (admin)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                base_url:
+                  type: string
+      responses:
+        '200':
+          description: Created
+
+  /api/config:
+    get:
+      summary: Get system config
+      responses:
+        '200':
+          description: Config key-value pairs
+    put:
+      summary: Update system config (admin)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                key:
+                  type: string
+                value:
+                  type: string
+      responses:
+        '200':
+          description: Updated
+
+  /api/crawl:
+    get:
+      summary: List crawl runs
+      responses:
+        '200':
+          description: Crawl run history
+    post:
+      summary: Trigger manual crawl (admin)
+      responses:
+        '200':
+          description: Crawl triggered
+
+  /api/notifications:
+    get:
+      summary: List notifications
+      parameters:
+        - name: unread
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Notification list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+
+  /api/admin/stats:
+    get:
+      summary: Admin statistics
+      responses:
+        '200':
+          description: Detailed admin stats
+
+  /api/admin/users:
+    get:
+      summary: List users (admin)
+      responses:
+        '200':
+          description: User list
+
+  /api/admin/push/send:
+    post:
+      summary: Trigger push manually (admin)
+      responses:
+        '200':
+          description: Push triggered
+
+  /api/admin/pipeline/run:
+    post:
+      summary: Run full pipeline (admin)
+      responses:
+        '200':
+          description: Pipeline triggered

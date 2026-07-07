@@ -6,15 +6,12 @@ const express = require('express');
 const router = express.Router();
 const { supabaseAdmin } = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
 
 // POST /api/auth/login - 登录
-router.post('/login', async (req, res) => {
+router.post('/login', validate(schemas.login), async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ success: false, error: 'Email and password are required' });
-    }
 
     const { data, error } = await supabaseAdmin.auth.signInWithPassword({
       email,
@@ -56,7 +53,6 @@ router.post('/logout', requireAuth, async (req, res) => {
     const { error } = await supabaseAdmin.auth.admin.signOut(token);
 
     if (error) {
-      // 即使登出失败也返回成功（token 可能已过期）
       console.warn('[auth] Logout warning:', error.message);
     }
 
@@ -75,20 +71,15 @@ router.get('/me', requireAuth, async (req, res) => {
 });
 
 // POST /api/auth/reset-password - 发送重置密码邮件
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', validate(schemas.resetPassword), async (req, res) => {
   try {
     const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({ success: false, error: 'Email is required' });
-    }
 
     const { error } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
       redirectTo: `${process.env.APP_URL || 'http://localhost:5173'}/reset-password`,
     });
 
     if (error) {
-      // 不暴露用户是否存在
       console.warn('[auth] Reset password warning:', error.message);
     }
 
@@ -99,18 +90,13 @@ router.post('/reset-password', async (req, res) => {
 });
 
 // POST /api/auth/update-password - 更新密码（重置后）
-router.post('/update-password', requireAuth, async (req, res) => {
+router.post('/update-password', requireAuth, validate(schemas.updatePassword), async (req, res) => {
   try {
     const { password } = req.body;
-
-    if (!password || password.length < 6) {
-      return res.status(400).json({ success: false, error: 'Password must be at least 6 characters' });
-    }
 
     const authHeader = req.headers.authorization;
     const token = authHeader.replace('Bearer ', '');
 
-    // 使用用户的 token 来更新密码
     const { error } = await supabaseAdmin.auth.admin.updateUserById(req.user.id, {
       password: password,
     });

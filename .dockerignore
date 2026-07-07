@@ -1,0 +1,7 @@
+node_modules
+src/client/node_modules
+src/cli/node_modules
+src/client/dist
+.git
+.env
+*.log
