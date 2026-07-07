@@ -11,7 +11,8 @@
     "cli": "node src/cli/bin/cr.js",
     "lint": "eslint src/client/src/**/*.{js,jsx} --fix",
     "lint:check": "eslint src/client/src/**/*.{js,jsx}",
-    "test:unit": "node tests/unit/*.test.js"
+    "test:unit": "node tests/unit/*.test.js",
+    "check": "bash scripts/check-workspace.sh"
   },
   "keywords": [
     "bidding",
