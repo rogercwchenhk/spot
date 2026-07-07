@@ -724,10 +724,6 @@ export default function Settings() {
       </div>
     );
   };
-        </div>
-      )}
-    </div>
-  );
 
   return (
     <div>

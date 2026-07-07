@@ -404,7 +404,6 @@ export default function Qualifications() {
             ))}
           </ResponsiveCardList>
 
-          </div>
         </>
       )}
 
